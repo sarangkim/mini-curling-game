@@ -148,7 +148,8 @@
             <div>• 턴 시간 안에 움직이지 못하면 그 컬링은 기권 처리됩니다.</div>
             <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
             <div>• 중심에 가장 가까운 원에 닿으면 30점, 그다음 원은 20점, 바깥 원은 10점입니다.</div>
-            <div>• 충돌음은 업로드한 <b>curling_sound.mp3</b> 파일을 사용합니다. GitHub에도 같은 파일을 같이 올려야 합니다.</div>
+            <div>• 충돌음은 업로드한 <b>curling_sound.mp3</b> 파일을 사용합니다. 한 번의 충돌 접촉마다 한 번만 재생되도록 조정했습니다.</div>
+            <div>• 온라인 상대가 없으면 오프라인에서 컴퓨터(주황)와 대결합니다.</div>
           </div>
         </div>
         <div class="card">
@@ -168,6 +169,7 @@
     const INNER_RING_R = SCORING_R * 0.3;
     const MAX_POWER = 6.2, FRICTION = 0.987, MIN_SPEED = 0.05, BOUNCE = 0.92;
     const AUDIO_COOLDOWN_MS = 70, PEER_PREFIX = 'mini-curling-room-', COLLISION_SOUND_URL = 'curling_sound.mp3';
+    const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const canvas = document.getElementById('board');
@@ -208,6 +210,7 @@
     let phase = 'lobby', turn = 'blue', timeLeft = 20, timerId = null, drag = null, particles = [];
     let audioCtx = null, audioReady = false, lastSoundAt = 0, collisionAudio = null;
     let suppressBroadcast = false, peer = null, conn = null, isHost = false, myTeam = 'blue', roomCode = '', playersConnected = 1;
+    let pairContacts = new Set(), wallContacts = new Set(), aiShotTimeout = null;
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     playerNameInput.value = playerName;
 
@@ -289,19 +292,31 @@
     }
     function activateNextStone(team) { let activated = false; stones = stones.map(s => (!activated && s.team === team && !s.launched && !s.out) ? ((activated = true), { ...s, active: true }) : { ...s, active: false }); }
     function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
-    function canControlTurn() { return phase === 'playing' && (!conn || myTeam === turn); }
+    function isAIMode() { return !conn && turn === 'orange'; }
+    function canControlTurn() { return phase === 'playing' && !isAIMode() && (!conn || myTeam === turn); }
     function makeInviteLink() { if (!roomCode) return ''; const url = new URL(window.location.href); url.searchParams.set('room', roomCode); return url.toString(); }
     function spawnParticles(x, y, color, intensity = 1) { const count = 8 + Math.floor(intensity * 10); for (let i = 0; i < count; i++) { const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * (2.5 + intensity * 2.2); particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 18 + Math.random() * 16, maxLife: 34, size: 2 + Math.random() * 4, color }); } }
     function updateParticles() { particles = particles.filter(p => (p.x += p.vx, p.y += p.vy, p.vx *= 0.96, p.vy *= 0.96, p.life -= 1, p.life > 0)); }
     function clampInTable(s) {
       const points = octagonPoints();
       for (let i = 0; i < points.length; i++) {
-        const a = points[i], b = points[(i + 1) % points.length], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey), tx = ex / len, ty = ey / len, nx = -ty, ny = tx;
+        const a = points[i], b = points[(i + 1) % points.length], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey), ty = ey / len, nx = -ty, ny = ex / len;
         const dist = (s.x - a.x) * nx + (s.y - a.y) * ny;
         if (dist < STONE_R) {
+          const wallKey = `${s.id}:${i}`;
+          wallContacts.add(wallKey);
           const push = STONE_R - dist; s.x += nx * push; s.y += ny * push;
           const vn = s.vx * nx + s.vy * ny;
-          if (vn < 0) { const impact = Math.min(1, Math.abs(vn) / 4.5); playCollisionSound(impact * 0.8); vibrate(10); spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact); s.vx = s.vx - (1 + BOUNCE) * vn * nx; s.vy = s.vy - (1 + BOUNCE) * vn * ny; }
+          if (vn < 0) {
+            const impact = Math.min(1, Math.abs(vn) / 4.5);
+            if (!prevWallContacts.has(wallKey)) {
+              playCollisionSound(impact * 0.8);
+              vibrate(10);
+              spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
+            }
+            s.vx = s.vx - (1 + BOUNCE) * vn * nx;
+            s.vy = s.vy - (1 + BOUNCE) * vn * ny;
+          }
         }
       }
       return s;
@@ -312,12 +327,18 @@
         if (a.out || b.out) continue;
         const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), minDist = STONE_R * 2;
         if (dist === 0 || dist >= minDist) continue;
+        const pairKey = [a.id, b.id].sort().join('|');
+        pairContacts.add(pairKey);
         const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
         a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5; b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
         const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
         if (relVel > 0) continue;
         const impulse = -relVel, impact = Math.min(1, Math.abs(impulse) / 5.5);
-        playCollisionSound(impact); vibrate(14); spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
+        if (!prevPairContacts.has(pairKey)) {
+          playCollisionSound(impact);
+          vibrate(14);
+          spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
+        }
         a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
       }
     }
@@ -371,6 +392,7 @@
 
     function startGame() {
       resetGame(); phase = 'playing'; resultText.textContent = 'Playing'; resetTurnClock(); playStartSound();
+      if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
         if (phase !== 'playing') return;
@@ -385,8 +407,8 @@
       computeScores(); turnDot.style.background = COLORS[turn]; turnText.textContent = turn.toUpperCase(); timeText.textContent = `${timeLeft}s`; scoreText.textContent = `${score.blue} : ${score.orange}`;
       blueRemain.textContent = countRemaining('blue'); orangeRemain.textContent = countRemaining('orange'); playersText.textContent = `${playersConnected} / 2`;
       onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드'); myTeamText.textContent = myTeam.toUpperCase(); roomCodeText.textContent = roomCode || '-';
-      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'LOCAL'); startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false; timeSelect.disabled = conn ? !isHost : false; inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
-      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
+      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'VS CPU'); startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false; timeSelect.disabled = conn ? !isHost : false; inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
+      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다');
     }
 
     function getCanvasPos(clientX, clientY) { const rect = canvas.getBoundingClientRect(); return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; }
@@ -473,13 +495,42 @@
       for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } ctx.globalAlpha = 1; ctx.restore();
     }
     function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
+    let prevPairContacts = new Set(), prevWallContacts = new Set();
+    function performAIShot() {
+      if (conn || phase !== 'playing' || turn !== 'orange') return;
+      const stone = activeStoneForTurn();
+      if (!stone || !allStopped()) return;
+      const targetX = CENTER_X + (Math.random() - 0.5) * 90;
+      const targetY = CENTER_Y + (Math.random() - 0.5) * 90;
+      const dx = targetX - stone.x;
+      const dy = targetY - stone.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const desired = Math.min(MAX_POWER * 0.92, Math.max(2.6, len / 42));
+      const vx = (dx / len) * desired;
+      const vy = (dy / len) * desired;
+      launchStone(stone.id, vx, vy);
+    }
     function step() {
       if (phase === 'playing' && (!conn || isHost)) {
+        pairContacts = new Set();
+        wallContacts = new Set();
         stones = stones.map(s => { if (s.out) return s; const next = { ...s }; next.x += next.vx; next.y += next.vy; next.vx *= FRICTION; next.vy *= FRICTION; if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0; if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0; return clampInTable(next); });
         resolveStoneCollisions();
         const stopped = allStopped(); const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
         if (stopped && !hasActiveUnlaunched) { if (countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame(); else advanceTurn(false); }
         if (conn && isHost) broadcastState();
+        prevPairContacts = pairContacts;
+        prevWallContacts = wallContacts;
+      }
+      if (!conn && phase === 'playing' && turn === 'orange' && allStopped() && !aiShotTimeout) {
+        aiShotTimeout = setTimeout(() => {
+          aiShotTimeout = null;
+          performAIShot();
+        }, AI_SHOT_DELAY_MS);
+      }
+      if ((conn || phase !== 'playing' || turn !== 'orange' || !allStopped()) && aiShotTimeout) {
+        clearTimeout(aiShotTimeout);
+        aiShotTimeout = null;
       }
       updateParticles(); updateHud(); draw(); requestAnimationFrame(step);
     }
@@ -495,42 +546,15 @@
     });
     copyInviteBtn.addEventListener('click', copyInviteLink); shareInviteBtn.addEventListener('click', shareInviteLink); leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
     startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
-    resetBtn.addEventListener('click', () => { resetGame(); if (conn) sendMessage({ type: 'reset' }); });
+    resetBtn.addEventListener('click', () => {
+      if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
+      resetGame();
+      if (conn) sendMessage({ type: 'reset' });
+    });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
       hideOverlay();
       if (conn) {
         if (!isHost) {
           overlayTitle.textContent = '호스트가 다시 시작해야 합니다';
-          overlaySub.textContent = '온라인에서는 방을 만든 사람이 Rematch를 눌러 새 게임을 시작합니다.';
-          resultOverlay.classList.add('show');
-          return;
-        }
-        startGame();
-        sendMessage({ type: 'rematch' });
-        return;
-      }
-      startGame();
-    });
-    closeOverlayBtn.addEventListener('click', hideOverlay);
-    timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
-    function tryJoinFromInput() {
-      const code = (joinCodeInput.value || '').trim().toUpperCase();
-      if (!code) return;
-      joinCodeInput.value = code;
-      joinRoom(code);
-    }
-    function initFromQuery() {
-      const room = new URLSearchParams(window.location.search).get('room');
-      if (room) {
-        joinCodeInput.value = room.toUpperCase();
-        setTimeout(() => {
-          tryJoinFromInput();
-        }, 200);
-      }
-    }
-
-    ensureAudio(); setupCollisionAudio(); renderLeaderboard(); initFromQuery(); resetGame(); requestAnimationFrame(step);
-  </script>
-</body>
-</html>
+          overlaySub.textContent = '온라인에서는 방을 만든 사람이 Rem
