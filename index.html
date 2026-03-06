@@ -89,7 +89,7 @@
             <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
             <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
           </div>
-          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트이고 파랑 팀, 참가자가 주황 팀입니다.</div>
+          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트이고 파랑 팀, 참가자가 주황 팀입니다. 초대 링크로 들어오거나, 호스트가 불러준 방 코드를 직접 입력해서 바로 참가할 수 있습니다.</div>
         </div>
         <div class="card">
           <div class="label">Turn setup</div>
@@ -416,13 +416,27 @@
     function teardownRoom() { if (conn) try { conn.close(); } catch {} if (peer) try { peer.destroy(); } catch {} conn = null; peer = null; isHost = false; myTeam = 'blue'; roomCode = ''; playersConnected = 1; history.replaceState({}, '', window.location.pathname); updateHud(); }
     function createRoom() {
       unlockAudio(); teardownRoom(); roomCode = randomCode(); isHost = true; myTeam = 'blue'; peer = new Peer(PEER_PREFIX + roomCode);
-      peer.on('open', () => { playersConnected = 1; updateHud(); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); });
+      peer.on('open', () => {
+        playersConnected = 1;
+        onlineStatusText.textContent = '방 생성됨';
+        updateHud();
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', roomCode);
+        history.replaceState({}, '', url);
+      });
       peer.on('connection', (connection) => { if (conn && conn.open) { connection.close(); return; } setConnectionHandlers(connection); });
       peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; }); updateHud();
     }
     function joinRoom(code) {
       unlockAudio(); teardownRoom(); roomCode = code.toUpperCase(); isHost = false; myTeam = 'orange'; peer = new Peer();
-      peer.on('open', () => { const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true }); setConnectionHandlers(connection); connection.on('open', () => sendMessage({ type: 'request_state', playerName })); });
+      peer.on('open', () => {
+        const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+        setConnectionHandlers(connection);
+        connection.on('open', () => {
+          onlineStatusText.textContent = '방 참가 완료';
+          sendMessage({ type: 'request_state', playerName });
+        });
+      });
       peer.on('error', () => { onlineStatusText.textContent = '참가 실패'; }); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); updateHud();
     }
     function copyInviteLink() { const link = makeInviteLink(); if (!link) return; navigator.clipboard?.writeText(link).then(() => { onlineStatusText.textContent = '초대 링크 복사됨'; }).catch(() => { inviteLinkBox.textContent = link; }); }
@@ -472,7 +486,13 @@
 
     saveNameBtn.addEventListener('click', () => { playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player'; localStorage.setItem('miniCurlingPlayerName', playerName); renderLeaderboard(); });
     createRoomBtn.addEventListener('click', createRoom);
-    joinRoomBtn.addEventListener('click', () => { const code = (joinCodeInput.value || '').trim().toUpperCase(); if (code) joinRoom(code); });
+    joinRoomBtn.addEventListener('click', tryJoinFromInput);
+    joinCodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        tryJoinFromInput();
+      }
+    });
     copyInviteBtn.addEventListener('click', copyInviteLink); shareInviteBtn.addEventListener('click', shareInviteLink); leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
     startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
     resetBtn.addEventListener('click', () => { resetGame(); if (conn) sendMessage({ type: 'reset' }); });
@@ -494,7 +514,21 @@
     });
     closeOverlayBtn.addEventListener('click', hideOverlay);
     timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
-    function initFromQuery() { const room = new URLSearchParams(window.location.search).get('room'); if (room) joinCodeInput.value = room.toUpperCase(); }
+    function tryJoinFromInput() {
+      const code = (joinCodeInput.value || '').trim().toUpperCase();
+      if (!code) return;
+      joinCodeInput.value = code;
+      joinRoom(code);
+    }
+    function initFromQuery() {
+      const room = new URLSearchParams(window.location.search).get('room');
+      if (room) {
+        joinCodeInput.value = room.toUpperCase();
+        setTimeout(() => {
+          tryJoinFromInput();
+        }, 200);
+      }
+    }
 
     ensureAudio(); setupCollisionAudio(); renderLeaderboard(); initFromQuery(); resetGame(); requestAnimationFrame(step);
   </script>
