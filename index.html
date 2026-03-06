@@ -145,12 +145,14 @@
             <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
             <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
           </div>
-          <div class="small" style="margin-top:10px;">PeerJS는 브라우저 간 P2P 연결을 쉽게 해주고, 무료 클라우드 PeerServer 또는 자체 서버를 사용할 수 있습니다. 공식 사이트 기준으로 PeerJS는 브라우저용 P2P 연결과 무료 클라우드 서버를 지원합니다. ([peerjs.com](https://peerjs.com/?utm_source=chatgpt.com))</div>
+          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트가 되고, 초대받은 사람은 참가자로 연결됩니다.</div>
         </div>
         <div class="card">
           <div class="label">Match setup</div>
           <div class="row">
             <select id="timeSelect">
+              <option value="10">10 seconds</option>
+              <option value="20" selected>20 seconds</option>
               <option value="30">30 seconds</option>
               <option value="40">40 seconds</option>
               <option value="50">50 seconds</option>
@@ -159,7 +161,7 @@
             <button id="startBtn" class="primary">Start Match</button>
             <button id="resetBtn" class="secondary">Reset</button>
           </div>
-          <div class="small" style="margin-top:10px;">방장이 시간 설정과 시작을 담당합니다. 온라인이면 방장 화면 기준으로 상대에게도 동기화됩니다.</div>
+          <div class="small" style="margin-top:10px;">방장이 턴 제한 시간을 10초 단위로 1분까지 정합니다. 전체 경기 시간이 아니라 각 플레이어가 자기 컬링을 움직여야 하는 제한 시간입니다.</div>
         </div>
       </div>
 
@@ -169,7 +171,7 @@
           <div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div>
         </div>
         <div class="card">
-          <div class="label">Time left</div>
+          <div class="label">Turn left</div>
           <div class="value" id="timeText">30s</div>
         </div>
         <div class="card">
@@ -1088,92 +1090,4 @@
             const next = { ...s };
             next.x += next.vx;
             next.y += next.vy;
-            next.vx *= FRICTION;
-            next.vy *= FRICTION;
-            if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
-            if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
-            return clampInTable(next);
-          });
-          resolveStoneCollisions();
-
-          const stopped = allStopped();
-          const hasActiveUnlaunched = stones.some(s => s.active && !s.launched);
-          if (stopped && !hasActiveUnlaunched) {
-            const currentRemain = countRemaining(turn);
-            if (currentRemain > 0) {
-              activateNextStone(turn);
-            } else {
-              turn = getNextTurn();
-              if (countRemaining(turn) > 0) activateNextStone(turn);
-            }
-            broadcastState();
-          }
-          if (stopped && countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame();
-        }
-      }
-      updateParticles();
-      updateHud();
-      draw();
-      requestAnimationFrame(step);
-    }
-
-    saveNameBtn.addEventListener('click', () => {
-      playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
-      localStorage.setItem('miniCurlingPlayerName', playerName);
-      renderLeaderboard();
-    });
-
-    createRoomBtn.addEventListener('click', createRoom);
-    joinRoomBtn.addEventListener('click', () => {
-      const code = (joinCodeInput.value || '').trim().toUpperCase();
-      if (!code) return;
-      joinRoom(code);
-    });
-    copyInviteBtn.addEventListener('click', copyInviteLink);
-    shareInviteBtn.addEventListener('click', shareInviteLink);
-    leaveRoomBtn.addEventListener('click', () => {
-      teardownRoom();
-      resetGame();
-    });
-
-    startBtn.addEventListener('click', () => {
-      unlockAudio();
-      if (conn && !isHost) return;
-      startGame();
-      if (conn && isHost) sendMessage({ type: 'start' });
-    });
-    resetBtn.addEventListener('click', () => {
-      resetGame();
-      if (conn) sendMessage({ type: 'reset' });
-    });
-    rematchBtn.addEventListener('click', () => {
-      hideOverlay();
-      resetGame();
-      if (conn) sendMessage({ type: 'rematch' });
-    });
-    closeOverlayBtn.addEventListener('click', hideOverlay);
-
-    timeSelect.addEventListener('change', () => {
-      if (phase !== 'playing') {
-        timeLeft = Number(timeSelect.value);
-        updateHud();
-        broadcastState();
-      }
-    });
-
-    function initFromQuery() {
-      const params = new URLSearchParams(window.location.search);
-      const room = params.get('room');
-      if (room) {
-        joinCodeInput.value = room.toUpperCase();
-      }
-    }
-
-    ensureAudio();
-    renderLeaderboard();
-    initFromQuery();
-    resetGame();
-    requestAnimationFrame(step);
-  </script>
-</body>
-</html>
+            next.vx *= FRICT
