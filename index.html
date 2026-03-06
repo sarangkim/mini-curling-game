@@ -1,1489 +1,3 @@
-
-
-20260306_174121.mp4
-파일
-너는 20년 차 게임 개발자야. 이제 모바일 게임을 만들거야. 지금 동영상 줄게. 이 동영상과 비슷한 게임을 만들어줘. 이 동영상에서는 두 사람이 미니컬링을, 상에서 움직이는데 두 사람이 팀을 나누어서 해. 각각 다른 색이야. 한 번씩 번갈아가면서 상 가운데 있는 동그라미 안에 컬링을 넣는 거야. 컬링은 하나씩 보내는 거야. 컬링은 4개가 있어. 컬링은 손가락으로 터치해서 미는거야. 상밖으로 못나가. 그리고 컬링은 너무 빠르게 움직이면 안돼. 천천히 적당한 속도로 움직여야 돼. 시간은 초대하는 사람이 30초에서 1분사이에 10초 단위로 정할 수 있게 해줘. 온라인게임으로 해줘. 친구추가해서 친구와 같이 할 수 있게 해줘. 시간이 끝나면 동그라미 안에 몇 개가 남는지에 따라서 승패를 결정하는 거야. 컬링 하나에 10점이야. 예를들어 내 컬링이 2개가 동그라미 안에 있으면 20점이야. 같은 점수면 무승부야. 
-
-
-1m 54s 동안 생각함
-영상 기준으로 바로 플레이 가능한 미니 컬링 모바일 게임 프로토타입을 만들어놨어요.
-
-구현한 핵심은 이렇습니다.
-
-2팀 대전: 파란색 vs 주황색
-
-번갈아 1개씩 발사
-
-팀당 컬링 4개
-
-손가락으로 당겨서 밀기
-
-컬링이 상 밖으로 나가지 않고 튕김
-
-너무 빠르지 않게 속도 상한 적용
-
-방장이 30 / 40 / 50 / 60초 중 선택
-
-시간 종료 시 중앙 원 안에 남은 컬링 1개당 10점
-
-동점이면 무승부
-
-친구 목록 UI, 방 생성 / 코드 참가 UI 포함
-
-지금 만든 건 클라이언트 프로토타입이고, 게임 화면과 룰은 바로 확인할 수 있게 해뒀습니다.
-다만 진짜 온라인 멀티플레이는 서버가 필요해서, 현재 코드는 온라인 확장 가능 구조로 만들어 두었고 실제 서비스용으로는 Firebase / Supabase Realtime / WebSocket 연결만 붙이면 됩니다.
-
-원하면 다음 단계로 바로 이어서 해줄 수 있어요:
-
-실제 온라인 멀티플레이 버전으로 완성
-
-안드로이드 APK / 웹 배포용 구조로 변환
-
-친구추가/초대/재경기/랭킹까지 붙인 출시형 버전으로 확장
-
-지금은 오른쪽 캔버스에 게임 코드가 올라가 있습니다.
-
-
-Mini-curling-online-prototype
-이걸 어떻게 테스트해 볼 수 있지? 그리고 상이 8각형이면 좋겠어.
-
-테스트는 이렇게 하면 됩니다.
-
-가장 쉬운 방법은 캔버스에서 바로 미리보기하는 거예요.
-
-오른쪽에 있는 코드 캔버스에서 실행/미리보기 버튼으로 열기
-
-Create room 누르기
-
-시간 30~60초 설정
-
-Start match 누른 뒤
-
-자기 차례의 컬링을 손가락처럼 마우스로 당겼다가 놓기
-
-중앙 원 안에 몇 개 남는지 확인
-
-두 명처럼 테스트하려면
-
-브라우저 탭 2개를 열고 같은 페이지를 띄운 다음
-
-한쪽은 Create room
-
-다른 쪽은 같은 Room Code로 Join
-
-이렇게 하면 현재 프로토타입 구조에서는 같은 기기/같은 브라우저 내 테스트가 가능합니다
-
-중요한 점은 지금 버전의 온라인은 진짜 인터넷 서버 연결이 아니라 BroadcastChannel 기반이라서,
-
-같은 브라우저 환경에서는 테스트 가능
-
-친구가 다른 집, 다른 휴대폰에서 접속하는 건 아직 안 됨
-이건 다음 단계에서 Firebase나 Supabase 붙이면 해결됩니다.
-
-그리고 요청하신 대로 상을 8각형으로 수정해뒀어요.
-
-화면 모양만 8각형이 아니라
-
-컬링이 8각형 면에 맞춰 튕기도록 물리 처리도 같이 바꿨습니다
-
-지금 바로 확인해 보시면 됩니다.
-원하시면 다음으로는 실제 휴대폰에서 열 수 있게 웹 배포용 버전까지 바로 바꿔드릴게요.
-
-
-Mini-curling-online-prototype
-start match를 누르면 컬링이 사라지는데?
-
-
-23s 동안 생각함
-맞아요. 방금 원인을 찾았어요.
-
-8각형 벽 충돌 계산에서 법선 방향이 반대로 들어가서, Start match를 누르는 순간 컬링들이 안쪽이 아니라 바깥쪽으로 밀려나면서 보드 밖/클립 밖으로 사라지는 현상이었습니다.
-
-지금 수정해뒀어요.
-
-8각형 각 변의 안쪽 법선 방향으로 변경
-
-시작 직후 컬링이 정상 위치에 유지되도록 보정
-
-이제 다시 테스트해 보세요.
-
-캔버스에서 새로고침
-
-Create room
-
-Start match
-
-그러면 컬링 8개가 그대로 보여야 정상입니다.
-
-원하시면 다음으로
-
-컬링 시작 위치를 더 자연스럽게 정렬
-
-손가락으로 당길 때 방향선/파워 게이지 추가
-
-진짜 온라인 멀티(Firebase/Supabase) 연결
-까지 바로 붙여드릴게요.
-
-
-Mini-curling-online-prototype
-컬링의 점선과 반대방향으로 가는데? 고쳐줘. 그리고 상대방의 컬링은 위쪽에 내 컬링은 아래쪽에 가로로 배치하는 것이 좋을 것 같아.
-
-고쳤어요.
-
-바뀐 내용:
-
-점선 방향 그대로 컬링이 나가도록 수정
-
-컬링 시작 배치를
-
-상대방(주황): 위쪽에 가로 4개
-
-내 컬링(파랑): 아래쪽에 가로 4개
-로 변경
-
-이제 테스트하면
-
-아래쪽 내 돌을 당기면
-
-점선이 향하는 쪽으로 그대로 이동하고
-
-화면도 위아래 대결 구도가 더 자연스럽게 보일 거예요.
-
-캔버스에서 새로고침해서 다시 확인해 보세요.
-
-
-Mini-curling-online-prototype
-오케이 휴대폰에서 할 수 있도록 웹 버전을 줘.
-
-휴대폰에서 바로 열 수 있는 모바일 웹 버전으로 따로 만들어뒀어요.
-
-지금 있는 새 캔버스 파일:
-
-Mini-curling-mobile-web
-
-이 버전은
-
-HTML 한 파일
-
-모바일 터치 지원
-
-8각형 상
-
-위쪽 상대 돌 / 아래쪽 내 돌
-
-점선 방향대로 발사
-
-30~60초 설정
-
-점수 계산
-까지 들어 있습니다.
-
-테스트 방법:
-
-새로 만든 Mini-curling-mobile-web 캔버스를 엽니다.
-
-미리보기로 실행합니다.
-
-휴대폰 브라우저에서 열려면, 이 파일을 복사해서
-
-GitHub Pages
-
-Netlify
-
-Vercel
-중 하나에 올리면 됩니다.
-
-올린 주소를 휴대폰에서 열면 바로 플레이할 수 있습니다.
-
-중요한 점:
-
-이 HTML 버전은 휴대폰에서 바로 되는 웹 버전
-
-대신 진짜 온라인 대전은 아직 아닙니다
-
-현재는 한 기기 로컬 플레이용
-
-친구와 각자 휴대폰으로 접속하는 온라인 버전은 다음 단계에서 Firebase/Supabase 붙여야 합니다
-
-원하시면 다음 답변에서 바로
-배포용 완성본(다운로드 가능한 html 파일) 또는
-Vercel/GitHub Pages에 올리는용 파일 세트로 만들어드릴게요.
-
-
-Mini-curling-online-prototype
-현재 상태에서 상대와 해보려면 어떻게 해야해?
-
-지금 코드 상태로 상대와 플레이하는 방법은 제한이 있습니다. 이유는 현재 온라인 방식이 BroadcastChannel이기 때문입니다.
-
-BroadcastChannel 특징
-같은 브라우저
-
-같은 컴퓨터
-
-같은 도메인 페이지
-
-에서만 통신됩니다.
-
-그래서 지금 가능한 방법은 아래입니다.
-
-1️⃣ 가장 쉬운 테스트 방법 (추천)
-같은 컴퓨터에서 두 플레이어 테스트
-1️⃣ 게임 페이지를 엽니다
-
-2️⃣ 브라우저 탭을 하나 더 엽니다
-
-예
-
-Tab1 : Player1
-Tab2 : Player2
-3️⃣ Tab1
-→ Create room 클릭
-
-예
-
-Room Code: K4J2A
-4️⃣ Tab2
-→ 코드 입력
-
-K4J2A
-→ Join
-
-5️⃣ Tab1에서
-
-Start Match
-하면
-
-두 탭이 실시간으로 같이 움직입니다
-
-2️⃣ 휴대폰 + 컴퓨터 테스트
-현재 구조에서는 불가능합니다
-
-왜냐하면 BroadcastChannel은
-
-❌ 다른 기기
-❌ 다른 네트워크
-❌ 다른 브라우저
-
-와는 통신이 안 됩니다.
-
-3️⃣ 진짜 친구와 온라인 플레이하려면
-딱 한 가지 추가하면 됩니다.
-
-서버를 붙여야 합니다.
-
-가장 쉬운 방법:
-
-Firebase Realtime Database
-또는
-
-Supabase Realtime
-이거 붙이면
-
-휴대폰 ↔ 휴대폰
-
-한국 ↔ 미국
-
-친구 초대 링크
-
-실시간 게임
-
-모두 가능해집니다.
-
-4️⃣ 제가 바로 만들어 줄 수 있는 것
-원하시면 다음 단계로 진짜 온라인 버전 만들어 드리겠습니다.
-
-가능한 기능:
-
-휴대폰 ↔ 휴대폰 실시간 대전
-
-방 링크 공유
-
-친구 초대
-
-턴 동기화
-
-컬링 물리 동기화
-
-Firebase 서버 사용
-
-그리고 배포까지 10분이면 끝납니다.
-
-원하시면 제가
-
-"휴대폰 두 대로 바로 되는 완전 온라인 버전"
-
-코드 만들어 드릴게요.
-
-
-Mini-curling-online-prototype
-같은 브라우저에서 이 게임을 어떻게 열어?
-
-좋은 질문입니다 👍
-같은 브라우저에서 여는 방법을 정확히 알려드릴게요.
-
-지금 이 코드는 웹사이트 형태로 실행해야 합니다.
-그래서 다음 중 하나로 열어야 합니다.
-
-방법 1 (가장 쉬움) — 같은 브라우저 탭 2개
-1️⃣ 게임 페이지를 실행합니다
-
-예
-
-http://localhost:3000
-2️⃣ 브라우저 탭을 하나 더 엽니다
-
-Tab1 → Player1
-Tab2 → Player2
-3️⃣ Tab1에서
-
-Create room
-예:
-
-Room Code: K7A2P
-4️⃣ Tab2에서
-
-K7A2P 입력
-Join
-5️⃣ Tab1에서
-
-Start match
-그러면
-
-두 탭이 같은 게임 상태를 공유
-
-서로 번갈아 플레이 가능
-
-방법 2 — 같은 브라우저 창 2개
-Chrome 기준
-
-Ctrl + N
-새 창 열기
-
-그리고
-
-http://localhost:3000
-같이 접속하면 됩니다.
-
-방법 3 — React 실행 방법 (혹시 안 열리면)
-프로젝트 폴더에서
-
-npm install
-npm run dev
-또는
-
-npm start
-열리는 주소
-
-http://localhost:3000
-중요한 조건
-이 프로토타입은
-
-BroadcastChannel 방식
-
-이라서 반드시
-
-✔ 같은 브라우저
-✔ 같은 사이트 주소
-✔ 같은 컴퓨터
-
-여야 합니다.
-
-예
-
-localhost:3000   ← OK
-localhost:5173   ← OK
-file://index.html ← ❌ 안됨
-원하시면 제가 다음 단계로
-휴대폰 두 대로 바로 되는 진짜 온라인 버전
-
-(10배 더 완성도 높은)
-
-방 링크 초대
-
-Firebase 서버
-
-휴대폰 vs 휴대폰
-
-친구 매칭
-
-까지 완성 코드 만들어 드리겠습니다.
-
-
-Mini-curling-mobile-web
-이 게임의 같은 사이트 주소를 알려줘
-
-지금 상태에서는 **공개된 사이트 주소(URL)**가 아직 없습니다.
-왜냐하면 이 게임은 아직 **웹에 배포(deploy)**되지 않았고, HTML 파일 상태이기 때문입니다.
-
-하지만 5분 안에 사이트 주소를 만들 수 있습니다.
-가장 쉬운 방법을 알려드릴게요.
-
-방법 1️⃣ (가장 쉬움) — GitHub Pages로 사이트 만들기
-1️⃣ HTML 파일 저장
-지금 캔버스에 있는 코드를
-
-파일 이름으로 저장합니다.
-
-mini-curling.html
-2️⃣ GitHub 접속
-https://github.com
-3️⃣ 새 저장소 생성
-New repository
-이름 예
-
-mini-curling-game
-4️⃣ HTML 업로드
-파일 업로드
-
-mini-curling.html
-5️⃣ Pages 활성화
-Settings → Pages
-
-Source
-
-Deploy from branch
-Branch
-
-main
-6️⃣ 사이트 주소 생성
-잠시 후 이런 주소가 생깁니다.
-
-예
-
-https://username.github.io/mini-curling-game/mini-curling.html
-이 주소가 같은 사이트 주소입니다.
-
-방법 2️⃣ (제가 추천하는 방법)
-Netlify Drop
-
-여기 들어가서
-
-https://app.netlify.com/drop
-파일 하나만 드래그하면 바로 사이트 생성됩니다.
-
-예
-
-https://mini-curling-abc123.netlify.app
-이 주소를 친구에게 보내면 됩니다.
-
-참고
-현재 HTML 버전은
-
-로컬 2인 플레이
-입니다.
-
-즉
-
-✔ 휴대폰 하나
-✔ 번갈아 플레이
-
-가능합니다.
-
-하지만
-
-❌ 휴대폰 두 대 온라인
-❌ 친구 대전
-
-은 아직 아닙니다.
-
-원하시면 제가
-친구와 바로 온라인 대전 가능한 완성 게임
-
-을 만들어 드릴 수 있습니다.
-
-그 버전은
-
-방 코드
-
-친구 초대
-
-휴대폰 ↔ 휴대폰 실시간
-
-서버 포함
-
-그리고 사이트 주소까지 바로 만들어 드립니다.
-
-원하시면 말씀해 주세요.
-
-
-Mini-curling-mobile-web
-html을 어떻게 보지? 복사하려고 해.
-
-지금은 이미 HTML 파일이 캔버스에 열려 있습니다.
-그래서 복사하는 방법은 아주 간단합니다.
-
-방법 1 (가장 쉬움)
-오른쪽에 보이는 Mini-curling-mobile-web.html 코드 창을 클릭
-
-Ctrl + A → 전체 선택
-
-Ctrl + C → 복사
-
-메모장 / VSCode / 메모 앱에 붙여넣기
-
-파일 이름을
-
-mini-curling.html
-로 저장
-
-방법 2 (파일로 만들기)
-메모장 열기 → 붙여넣기 → 저장할 때
-
-파일 이름: mini-curling.html
-파일 형식: 모든 파일
-실행 방법
-파일을 더블 클릭하면 바로 실행됩니다.
-
-mini-curling.html
-그러면 브라우저에서 게임이 열립니다.
-
-휴대폰에서 테스트
-만든 html 파일을
-
-카카오톡 / 이메일 / 에어드롭 / 구글드라이브로
-
-휴대폰에 보내기
-
-휴대폰에서 열기
-
-그러면 바로 플레이됩니다.
-
-원하시면 제가
-다운로드 가능한 html 파일
-
-친구와 온라인 대전 가능한 버전
-
-휴대폰 두 대에서 바로 플레이
-
-까지 완성 버전 만들어 드릴게요.
-
-
-오른쪽에 보이는 Mini-curling-mobile-web.html 코드 창이 안보여
-
-아마 지금 캔버스(코드 창)가 접혀 있거나 화면에 안 보이는 상태일 가능성이 큽니다. 다음 방법으로 다시 열어보세요.
-
-1️⃣ 캔버스 다시 열기
-화면 오른쪽 또는 위쪽에 “Mini-curling-mobile-web” 또는 “Canvas” 버튼/탭이 있을 수 있습니다.
-그걸 클릭하면 코드 창이 다시 나타납니다.
-
-2️⃣ 화면이 좁은 경우
-브라우저 창이 좁으면 캔버스가 숨겨집니다.
-
-브라우저 창을 최대화
-
-또는 오른쪽에 작은 화살표(▶) 를 눌러 사이드 패널을 펼치기
-
-3️⃣ 그래도 안 보이면
-제가 HTML 파일을 바로 복사할 수 있게 다시 보내드릴 수도 있습니다.
-
-또는 다운로드 가능한 파일 형태로 만들어드릴게요.
-
-원하시면 제가
-
-클릭 한 번으로 다운로드 되는 HTML 파일
-
-휴대폰에서 바로 열리는 웹 게임 링크
-
-도 만들어 드리겠습니다.
-
-
-Mini-curling-mobile-web
-
-curling_sound.m4a
-파일
-컬링이 부딪힐 때 이 소리가 나도록 추가해줘.
-
-
-11s 동안 생각함
-추가해뒀어요.
-
-변경된 내용:
-
-돌끼리 부딪힐 때 효과음 재생
-
-8각형 벽에 강하게 부딪힐 때도 효과음 재생
-
-충돌 세기에 따라 볼륨이 조금 달라지게 처리
-
-소리가 너무 연속으로 겹치지 않도록 짧은 쿨다운도 넣었습니다
-
-중요:
-
-현재 HTML은 효과음을 curling_sound.m4a 파일명으로 불러오도록 되어 있습니다
-
-그래서 이 HTML과 소리 파일을 같은 폴더에 같이 둬야 합니다
-
-예:
-
-mini-curling.html
-curling_sound.m4a
-또 하나:
-
-모바일 브라우저는 보통 사용자 터치 후에만 소리를 허용해서
-
-Start Match를 누르거나 보드를 터치한 뒤부터 소리가 정상 재생됩니다
-
-원하시면 다음으로 소리 파일까지 HTML 안에 완전히 내장된 단일 파일 버전으로 바꿔드릴게요. 그러면 파일 1개만 가지고 다녀도 됩니다.
-
-
-Mini-curling-mobile-web
-응 그렇게 하고 또 게임이 시작할 때와 비겼을 때 이겼을 때의 소리가 있으면 좋겠는데 적당한 소리를 찾아서 같이 넣어 주면 좋을 것 같아.
-
-
-44s 동안 생각함
-좋아요. 이제 완전 단일 HTML 파일로 바꿔뒀고, 추가로 사운드도 넣었습니다.
-
-추가된 사운드:
-
-컬링 충돌음
-
-게임 시작음
-
-승리음
-
-무승부음
-
-이번에는 외부 오디오 파일을 따로 두지 않아도 되게,
-HTML 안에서 바로 소리를 생성하는 방식(Web Audio) 으로 바꿨습니다.
-즉 이제는 파일 1개만 있으면 됩니다.
-
-핵심 변화:
-
-curling_sound.m4a 없이도 실행됨
-
-HTML 하나만 저장해서 바로 열 수 있음
-
-모바일 브라우저에서도 터치 후 사운드 재생 가능
-
-시작/승리/무승부 상황별 효과음 포함
-
-참고로 “적당한 소리”는 외부 파일을 더 붙이는 대신,
-게임 분위기에 맞게 가벼운 아케이드 스타일 효과음으로 넣어놨어요.
-그래서 저작권 걱정 없이 바로 사용 가능합니다.
-
-이제 필요한 건:
-
-캔버스의 Mini-curling-mobile-web 내용을 복사
-
-mini-curling.html 로 저장
-
-브라우저에서 열기
-
-원하시면 다음에는 이걸 아예 다운로드 가능한 html 파일로 바로 만들어드릴게요.
-
-
-Mini-curling-mobile-web
-아 졌을 때 소리도 필요해. 추가해줘.
-
-추가해뒀어요.
-
-변경 내용:
-
-패배 사운드 추가
-
-안내 문구도
-
-시작
-
-승리
-
-패배
-
-무승부
-사운드가 있다고 수정
-
-현재 기준으로는
-
-파랑 승리 → 승리음
-
-주황 승리 → 패배음
-
-동점 → 무승부음
-
-으로 작동합니다.
-
-지금 캔버스의 Mini-curling-mobile-web이 최신 상태예요.
-원하시면 다음엔 제가 이걸 실제 다운로드 가능한 HTML 파일로 바로 만들어드릴게요.
-
-
-Mini-curling-mobile-web
-이 html 파일을 github에 어떻게 올리지?
-
-지금 캔버스에 있는 HTML 파일을 그대로 GitHub에 올리면 바로 웹사이트가 됩니다.
-가장 쉬운 방법을 단계별로 설명할게요.
-
-1️⃣ HTML 파일 저장
-캔버스에 있는 코드를
-
-파일 이름
-
-index.html
-로 저장하세요.
-
-중요:
-GitHub Pages는 index.html을 자동으로 첫 페이지로 사용합니다.
-
-2️⃣ GitHub 접속
-여기 들어갑니다
-
-https://github.com
-로그인합니다.
-
-3️⃣ 새 저장소 만들기
-오른쪽 위
-
-New repository
-클릭
-
-예:
-
-Repository name: mini-curling
-Public 선택
-
-Create repository
-4️⃣ HTML 업로드
-화면에서
-
-uploading an existing file
-클릭
-
-또는
-
-Add file
-→ Upload files
-여기서
-
-index.html
-파일을 드래그해서 업로드
-
-그리고 아래
-
-Commit changes
-클릭
-
-5️⃣ GitHub Pages 켜기
-저장소 상단 메뉴에서
-
-Settings
-클릭
-
-왼쪽 메뉴에서
-
-Pages
-클릭
-
-Source 설정
-
-Deploy from branch
-Branch
-
-main
-Save
-
-6️⃣ 사이트 주소 생성
-약 10~30초 후
-
-이 주소가 생깁니다.
-
-https://USERNAME.github.io/mini-curling/
-예
-
-https://sarangkim.github.io/mini-curling/
-여기가 게임 사이트 주소입니다.
-
-휴대폰에서도 바로 열립니다.
-
-7️⃣ 친구에게 보내기
-이 주소를 보내면
-
-https://USERNAME.github.io/mini-curling/
-친구도 바로 플레이 가능합니다.
-
-💡 팁
-원하시면 제가 이 게임을
-
-진짜 온라인 2인 대전
-
-방 코드
-
-친구 초대
-
-랭킹
-
-모바일 UI 개선
-
-까지 해서 완성 게임 버전으로 만들어 드릴 수도 있습니다.
-
-
-Mini-curling-mobile-web
-settings 에서 main으로 설정했는데 https://sarangkim.github.io/mini-curling/ 이 주소를 github 어디서 볼 수 있는지 모르겠어.
-
-좋아요. 지금 이미 GitHub Pages는 거의 설정된 상태일 가능성이 큽니다.
-다만 사이트 주소를 어디서 확인하는지가 헷갈릴 수 있습니다. 아래 순서대로 보세요.
-
-1️⃣ 저장소로 이동
-GitHub에서 먼저 저장소를 엽니다.
-
-예
-
-https://github.com/sarangkim/mini-curling
-2️⃣ Settings 클릭
-저장소 상단 메뉴에서
-
-Settings
-클릭합니다.
-
-3️⃣ Pages 메뉴 클릭
-왼쪽 메뉴에서
-
-Pages
-를 클릭합니다.
-
-4️⃣ 여기서 주소 확인
-페이지 중간에 이런 문장이 보입니다.
-
-Your site is live at
-https://sarangkim.github.io/mini-curling/
-여기 파란색 링크가 바로 게임 주소입니다.
-
-5️⃣ 처음이면 1~2분 걸릴 수 있음
-처음 배포하면 GitHub가 사이트를 만드는 데
-
-30초 ~ 2분
-정도 걸립니다.
-
-그래서 처음에는
-
-Your site is being built
-같은 메시지가 나올 수도 있습니다.
-
-잠깐 기다리면 주소가 나타납니다.
-
-6️⃣ 중요한 확인 (이거 꼭 확인)
-저장소에 파일 이름이 반드시
-
-index.html
-이어야 합니다.
-
-지금 이름이
-
-mini-curling.html
-이면 사이트가 안 열립니다.
-
-파일 이름을 반드시
-
-index.html
-로 바꾸세요.
-
-7️⃣ 바로 확인하는 방법
-브라우저 주소창에 직접 입력해도 됩니다.
-
-https://sarangkim.github.io/mini-curling/
-👍 원하시면 제가 다음도 만들어 드릴게요
-지금 게임은 이미 잘 만들어졌는데
-조금만 더 손보면 훨씬 게임같아집니다.
-
-예를 들어
-
-컬링 파워 게이지
-
-조준선
-
-충돌 파티클
-
-승리 애니메이션
-
-온라인 2인 대전
-
-휴대폰 최적화
-
-특히 온라인 대전 버전은
-지금 코드에서 30줄 정도만 추가하면 됩니다.
-
-원하시면 제가 완성 버전 만들어 드릴게요.
-
-
-Mini-curling-mobile-web
-https://sarangkim.github.io/mini-curling-game/ 이렇게 되었는데 안 열려
-
-
-8s 동안 생각함
-지금 주소는 제가 확인해보니 404 Not Found가 뜹니다. 즉, Pages는 아직 그 경로에 배포되지 않았거나, 배포는 됐지만 파일 위치/이름이 맞지 않은 상태예요. 
-
-가장 흔한 원인은 이것입니다.
-
-1. 저장소 이름과 주소가 안 맞는 경우
-저장소가 mini-curling이면 주소는 보통
-https://sarangkim.github.io/mini-curling/
-저장소가 mini-curling-game이면
-https://sarangkim.github.io/mini-curling-game/
-입니다.
-
-2. 파일 이름이 index.html이 아닌 경우
-GitHub Pages는 기본적으로 루트에 있는 index.html을 찾습니다.
-지금 올린 파일 이름이 mini-curling.html이면 주소만으로는 안 열릴 수 있습니다.
-
-3. 파일이 저장소 루트가 아니라 하위 폴더에 있는 경우
-index.html이 맨 위가 아니라 docs/나 다른 폴더 안에 있으면 설정과 경로가 달라져야 합니다.
-
-지금 바로 확인할 것은 딱 3가지입니다.
-
-첫째, 저장소 메인 화면에서 파일 목록 맨 위에 index.html 이 보이는지 확인하세요.
-둘째, Settings → Pages 에서 Source가 Deploy from branch, Branch가 main /(root) 로 되어 있는지 확인하세요.
-셋째, Pages 화면에 “Your site is live at …” 문구가 뜨는지 확인하세요.
-
-가장 빠른 해결 방법은 이겁니다.
-
-저장소 이름이 mini-curling-game 맞는지 확인
-
-업로드한 HTML 파일 이름을 반드시 index.html 로 변경
-
-그 파일을 저장소 최상단(root) 에 두기
-
-Settings → Pages 에서 main / (root) 저장
-
-1~2분 뒤 다시 접속
-
-그다음 접속 주소는:
-https://sarangkim.github.io/mini-curling-game/
-
-만약 파일 이름을 바꾸기 어렵다면, 파일명이 mini-curling.html일 때는 이 주소로도 열릴 수 있습니다.
-https://sarangkim.github.io/mini-curling-game/mini-curling.html
-
-지금 가장 가능성 높은 건 index.html이 없거나 루트에 없는 상태입니다.
-원하시면 제가 바로 GitHub에 올릴 때 필요한 최종 파일명/폴더 구조를 한 줄씩 맞춰드릴게요.
-
-
-Mini-curling-mobile-web
-오케이 열렸어. 그런데 상대와 어떻게 해볼 수 있지? 상대를 초대하거나 할 수가 없는데?
-
-지금 상태에서는 상대를 초대해서 같이 플레이할 수 없습니다.
-이유는 현재 코드가 완전히 로컬 게임이기 때문입니다.
-
-지금 게임 구조는:
-
-브라우저 안에서만 실행
-
-서버 없음
-
-데이터 공유 없음
-
-그래서 친구가 같은 URL을 열어도 각자 다른 게임이 됩니다.
-
-친구와 플레이하려면 필요한 것
-온라인 대전을 하려면 중간 서버가 필요합니다.
-
-가장 쉬운 방법 2가지:
-
-방법 1 (추천)
-Firebase Realtime Database
-
-장점
-
-무료
-
-설정 10분
-
-실시간 게임 가능
-
-초대 코드 만들기 쉬움
-
-방법 2
-Supabase Realtime
-
-장점
-
-Firebase보다 코드 깔끔
-
-SQL 사용 가능
-
-온라인 구조는 이렇게 됩니다
-Player A
-     │
-     │
-Firebase 서버
-     │
-     │
-Player B
-게임 상태를 서버에 저장해서 서로 동기화합니다.
-
-예
-
-room123
- ├ turn
- ├ stones
- ├ score
- └ time
-초대 방식 예시
-사이트 주소
-
-https://sarangkim.github.io/mini-curling-game/
-방 만들기
-
-ROOM: 4821
-친구에게 보내기
-
-https://sarangkim.github.io/mini-curling-game/?room=4821
-친구가 접속하면 같은 게임이 됩니다.
-
-제가 추천하는 다음 단계
-지금 게임은 이미 90% 완성입니다.
-
-제가 다음 기능을 추가해드릴 수 있습니다.
-
-1️⃣ 온라인 대전
-방 만들기
-
-친구 초대
-
-실시간 동기화
-
-2️⃣ 모바일 UX 개선
-파워 게이지
-
-조준 가이드
-
-진동 효과
-
-3️⃣ 게임 느낌 강화
-충돌 파티클
-
-점수 애니메이션
-
-승리 화면
-
-4️⃣ 랭킹 시스템
-💡 원하시면 제가 지금 코드에 바로 붙는 온라인 버전을 만들어 드릴게요.
-
-Firebase 기반으로 하면
-
-코드 약 150줄 추가
-
-GitHub Pages 그대로 사용 가능
-
-휴대폰 2대로 바로 플레이 가능
-
-원하시면 초대 코드 방식 온라인 버전 바로 만들어 드리겠습니다.
-
-
-Mini-curling-mobile-web
-좋아 네가 말한 것 다 추가해줘.
-
-
-25s 동안 생각함
-다 넣어뒀어요.
-
-이번에 추가된 것:
-
-온라인 2인 대전
-
-방 만들기
-
-방 코드 참가
-
-초대 링크 복사
-
-모바일 공유
-
-모바일 UX 개선
-
-파워 게이지
-
-조준 가이드
-
-내 팀 표시
-
-방 상태 표시
-
-게임 느낌 강화
-
-충돌 파티클
-
-벽/돌 충돌 진동
-
-결과 오버레이
-
-리매치 버튼
-
-랭킹
-
-이 기기 브라우저에 저장되는 로컬 리더보드
-
-중요한 점:
-
-이번 온라인 기능은 PeerJS 기반 P2P 방식입니다
-
-그래서 GitHub Pages에 올린 정적 사이트에서도 작동 가능하게 해뒀습니다
-
-방장 = 파랑, 참가자 = 주황으로 동작합니다
-
-테스트 방법:
-
-GitHub의 index.html 내용을 지금 최신 코드로 교체
-
-GitHub Pages 반영 후 사이트 열기
-
-한 사람은 방 만들기
-
-초대 링크를 복사해서 상대에게 보내기
-
-상대는 링크로 접속하거나 방 코드 입력 후 참가
-
-두 명이 연결되면 시작 가능
-
-주의:
-
-첫 연결은 브라우저/네트워크 환경에 따라 약간의 차이가 있을 수 있습니다
-
-일부 회사망이나 매우 강한 보안망에서는 WebRTC 연결이 제한될 수 있습니다
-
-지금 캔버스의 Mini-curling-mobile-web이 최신본입니다.
-이걸 GitHub의 index.html에 덮어쓰면 됩니다.
-
-
-
-Mini-curling-mobile-web
-게임 전체 시간은 필요가 없을 것 같아. 단지 게임을 세팅하는 사람이 컬링을 움직여야 하는 시간을 10초 단위로 1분까지 설정할 수 있으면 좋겠어. 그리고 파란색이 먼저 시작하는데 그 다음 초대받은 오렌지색은 움직여지지 않아. 수정해줘. 그리고 컬링이 부딪힐 때 나는 소리는 내가 업로드한 소리로 하면 좋겠어.
-
-
-1m 48s 동안 생각함
-
-생각함
-수정본 만들어뒀어요. 새 캔버스 파일은 Mini-curling-mobile-web-v2입니다.
-
-바뀐 점:
-
-전체 경기 시간 제거
-
-대신 턴 제한 시간만 사용
-
-10초, 20초, 30초, 40초, 50초, 60초
-
-턴이 바뀔 때마다 시간이 다시 시작
-
-파랑 → 주황 → 파랑 → 주황으로 정확히 번갈아 진행되도록 수정
-
-주황 차례가 움직이지 않던 문제도 함께 고침
-
-충돌음은 curling_sound.m4a 파일을 사용하도록 변경
-
-중요:
-
-GitHub에는 index.html만 올리면 안 되고
-
-같은 폴더에 **curling_sound.m4a**도 같이 올려야 합니다
-
-예:
-
-index.html
-
-curling_sound.m4a
-
-추천 적용 방법:
-
-GitHub의 index.html 내용을 Mini-curling-mobile-web-v2 내용으로 교체
-
-업로드한 소리 파일 이름 그대로 **curling_sound.m4a**로 저장해서 같은 저장소 루트에 업로드
-
-GitHub Pages 반영 후 다시 테스트
-
-원하시면 다음엔 제가
-GitHub에 올릴 파일 구조를 딱 맞게 한 번 더 정리해드릴게요.
-
-
-Mini-curling-mobile-web
-github에 curling_sound.m4a 파일이 업로드가 안되는데?
-
-그럼 가장 쉬운 해결은 GitHub에 m4a를 따로 안 올리는 방식으로 가는 거예요.
-
-가능한 원인은 보통 이렇습니다.
-
-GitHub 웹 업로드 중 드래그가 잘 안 됨
-
-파일명이 특수문자/공백 포함
-
-브라우저 업로드 오류
-
-모바일 브라우저에서 업로드 제한
-
-먼저 가장 간단한 업로드 방법은 이것입니다.
-
-GitHub에 소리 파일 올리는 법
-저장소 메인으로 이동
-
-Add file → Upload files
-
-curling_sound.m4a 파일을 끌어다 놓기
-
-아래 Commit changes 누르기
-
-그래도 안 되면 파일명을 먼저 아주 단순하게 바꿔보세요.
-
-curling_sound.m4a
-공백, 한글, 괄호 없이요.
-
-또는 PC 브라우저 크롬으로 해보는 게 가장 안정적입니다.
-
-하지만 지금 상황에서는 더 좋은 방법이 있습니다.
-
-더 쉬운 방법: 소리 파일을 HTML 안에 넣기
-즉,
-
-index.html 하나만 GitHub에 올리고
-
-소리 파일은 따로 업로드하지 않는 방식입니다.
-
-이렇게 하면
-
-GitHub 업로드 문제 없음
-
-파일 관리 쉬움
-
-배포도 더 간단함
-
-지금 원하시는 건 이 방향이 더 맞습니다.
-
-추천
-제가 다음 단계로 바로 해드릴 수 있는 것:
-
-업로드한 curling_sound.m4a를 HTML 안에 내장
-
-GitHub에는 index.html 하나만 올리면 되게 수정
-
-동시에 지금 말씀하신 턴 제한 시간 방식과 오렌지 턴 문제까지 정리된 최종본으로 맞춤
-
-지금 바로 그 방식으로 정리해드릴까요?
-
-
-Mini-curling-mobile-web
-그런데 방만들기가 안돼. 방만들기가 안되니 시작이 안돼.
-
-
-27s 동안 생각함
-원인 후보를 반영해서 고쳤어요.
-
-수정한 내용:
-
-PeerJS 로드 실패 대비
-
-unpkg와 jsdelivr 두 경로를 넣음
-
-Peer 생성 설정 보강
-
-0.peerjs.com, 443, secure: true로 명시
-
-방 만들기 실패 시 상태 문구 표시
-
-방 생성 실패: PeerJS 로드 안 됨
-
-Start Match 버튼은 항상 누를 수 있게 변경
-
-방이 안 만들어져도 로컬 테스트는 가능
-
-즉 이제는
-
-온라인 방이 정상 생성되면 그대로 사용
-
-PeerJS가 막혀도 최소한 게임 시작 자체는 가능합니다
-
-적용 방법:
-
-GitHub의 index.html을 지금 캔버스 최신본으로 다시 덮어쓰기
-
-저장 후 GitHub Pages 반영 대기
-
-새로고침 후 다시 방 만들기 테스트
-
-확인 포인트:
-
-상태: 옆 문구가 어떻게 바뀌는지 보기
-
-방 생성됨이면 정상
-
-방 생성 실패: PeerJS 로드 안 됨이면 외부 PeerJS 로드 문제
-
-방 생성 실패면 Peer 서버 연결 문제
-
-지금 상태에선 최소한 Start Match는 눌러질 것입니다.
-
-다음으로 정확히 잡으려면, 사이트에서 방 만들기 눌렀을 때 상태 문구가 뭐로 바뀌는지 알려주세요.
-
-
-Mini-curling-mobile-web-v2
-오케이 게임이 끝나고 rematch를 누르면 반응하지 않아. 그리고 점수는 동그란 원이 3개가 있는데 센터를 중심으로 가장 가까운 원에 닿으면 30점 그 다음 원에 닿으면 20점 그 다음 원은 10점으로 해서 계산해줘.
-
-
-14s 동안 생각함
-고쳤어요. 수정본은 Mini-curling-mobile-web-v2에 반영돼 있습니다.
-
-바뀐 내용:
-
-Rematch 버튼이 이제 바로 새 게임을 시작합니다
-
-온라인에서는 호스트만 Rematch 시작할 수 있고, 상대에게도 같이 반영됩니다
-
-점수 계산을 3단계 링 점수로 변경했습니다
-
-가장 안쪽 원에 닿으면 30점
-
-그다음 원에 닿으면 20점
-
-바깥 원에 닿으면 10점
-
-안내 문구도 새 점수 규칙에 맞게 바꿨습니다
-
-점수 계산 방식은 컬링의 바깥쪽 가장 가까운 부분이 어느 링에 닿았는지 기준으로 처리해서, 사용자가 보기에 더 자연스럽게 맞도록 했습니다.
-
-이제 할 일:
-
-GitHub의 index.html을 이 최신 v2 코드로 다시 덮어쓰기
-
-새로고침 후 테스트
-
-게임 종료 후 Rematch 눌러서 바로 재시작되는지 확인
-
-원하시면 다음엔 현재 점수 영역(30/20/10)을 색으로 더 명확하게 보이게 바꿔드릴게요.
-
-
-Mini-curling-mobile-web-v2
-현재 점수 영역(30/20/10)을 색으로 더 명확하게 보이게 바꿔줘. 그리고 소리 파일은 curling_sound.mp3로 변경했어.
-
-반영했어요. Mini-curling-mobile-web-v2가 최신 상태입니다.
-
-변경된 내용:
-
-점수 영역을 색으로 더 뚜렷하게 구분
-
-30점: 안쪽 원을 붉은 톤
-
-20점: 중간 원을 파란 톤
-
-10점: 바깥 원을 노란 톤
-
-링 위에 10 / 20 / 30 숫자 표시 추가
-
-충돌 사운드 파일명을
-
-curling_sound.m4a
-
-→ curling_sound.mp3
-로 변경
-
-GitHub에는 이제 이 두 가지만 맞추면 됩니다.
-
-index.html
-
-curling_sound.mp3
-
-이전 m4a가 아니라 반드시 curling_sound.mp3 파일명으로 같은 위치에 올려야 합니다.
-
-
-Mini-curling-mobile-web-v2
-rematch를 누르면 플레이가 안되는데?
-
-
-11s 동안 생각함
-원인 찾았어요.
-
-문제는 결과 오버레이에 pointer-events: none 이 계속 걸려 있어서,
-Rematch 버튼이 보여도 실제 클릭이 제대로 안 먹을 수 있었습니다.
-
-지금 수정한 내용:
-
-결과 오버레이가 보일 때는 클릭 가능하도록 변경
-
-Rematch 누를 때 오디오도 다시 활성화
-
-온라인에서는
-
-호스트가 누르면 바로 새 게임 시작
-
-참가자가 누르면 “호스트가 다시 시작해야 합니다” 안내가 뜨도록 변경
-
-즉 이제:
-
-로컬 모드 → Rematch 바로 재시작
-
-온라인 호스트 → Rematch 바로 재시작 + 상대에게도 반영
-
-온라인 참가자 → 호스트가 눌러야 시작된다는 안내 표시
-
-GitHub의 index.html을 이 최신 Mini-curling-mobile-web-v2 코드로 다시 덮어쓴 뒤 새로고침해서 테스트해보세요.
-
-
-
-
-
-Mini-curling-mobile-web-v2
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1553,3 +67,436 @@ Mini-curling-mobile-web-v2
       <div class="sub">턴 제한 시간 방식으로 바꾼 온라인 2인 미니 컬링입니다. 초대 링크, 파워 게이지, 조준 가이드, 파티클, 승패 사운드, 로컬 랭킹이 포함되어 있습니다.</div>
 
       <div class="online-grid">
+        <div class="card">
+          <div class="label">Online match</div>
+          <div class="row" style="margin-bottom:10px;">
+            <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
+            <button id="saveNameBtn" class="secondary">저장</button>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <button id="createRoomBtn" class="primary">방 만들기</button>
+            <input id="joinCodeInput" placeholder="방 코드 입력" maxlength="12" />
+            <button id="joinRoomBtn" class="good">참가</button>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <button id="copyInviteBtn" class="secondary">초대 링크 복사</button>
+            <button id="shareInviteBtn" class="secondary">공유</button>
+            <button id="leaveRoomBtn" class="warn">방 나가기</button>
+          </div>
+          <div class="link-box" id="inviteLinkBox">방을 만들면 초대 링크가 여기에 표시됩니다.</div>
+          <div class="status-line">
+            <span class="pill">상태: <strong id="onlineStatusText">오프라인 로컬 모드</strong></span>
+            <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
+            <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
+          </div>
+          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트이고 파랑 팀, 참가자가 주황 팀입니다.</div>
+        </div>
+        <div class="card">
+          <div class="label">Turn setup</div>
+          <div class="row">
+            <select id="timeSelect">
+              <option value="10">10 seconds</option>
+              <option value="20" selected>20 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="40">40 seconds</option>
+              <option value="50">50 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
+            <button id="startBtn" class="primary">Start Match</button>
+            <button id="resetBtn" class="secondary">Reset</button>
+          </div>
+          <div class="small" style="margin-top:10px;">전체 경기 시간이 아니라 각 플레이어가 자기 컬링을 움직여야 하는 턴 제한 시간입니다. 턴이 바뀔 때마다 시간이 다시 시작됩니다.</div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="card"><div class="label">Turn</div><div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div></div>
+        <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
+        <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div></div>
+        <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">LOCAL</div></div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board" width="720" height="960"></canvas>
+        <div class="aim-badge" id="aimBadge">당겨서 조준</div>
+        <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
+        <div class="overlay" id="resultOverlay">
+          <div class="overlay-card">
+            <div class="overlay-title" id="overlayTitle">Ready</div>
+            <div class="overlay-sub" id="overlaySub">방을 만들거나 참가한 뒤 시작하세요.</div>
+            <div class="row">
+              <button id="rematchBtn" class="primary">Rematch</button>
+              <button id="closeOverlayBtn" class="secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">4</div></div>
+        <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">4</div></div>
+        <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
+        <div class="card"><div class="label">Players</div><div class="value" id="playersText">1 / 2</div></div>
+      </div>
+
+      <div class="bottom-grid">
+        <div class="card">
+          <div class="label">How to play</div>
+          <div class="rules">
+            <div>• 파랑과 주황이 한 번씩 번갈아 컬링 1개씩 움직입니다.</div>
+            <div>• 각 턴마다 제한 시간이 새로 시작됩니다.</div>
+            <div>• 턴 시간 안에 움직이지 못하면 그 컬링은 기권 처리됩니다.</div>
+            <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
+            <div>• 중심에 가장 가까운 원에 닿으면 30점, 그다음 원은 20점, 바깥 원은 10점입니다.</div>
+            <div>• 충돌음은 업로드한 <b>curling_sound.mp3</b> 파일을 사용합니다. GitHub에도 같은 파일을 같이 올려야 합니다.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label">Leaderboard (이 기기 저장)</div>
+          <div class="small">이 랭킹은 현재 브라우저 localStorage에 저장됩니다.</div>
+          <div class="leaderboard" id="leaderboard"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
+    const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
+    const OUTER_RING_R = SCORING_R;
+    const MIDDLE_RING_R = SCORING_R * 0.66;
+    const INNER_RING_R = SCORING_R * 0.3;
+    const MAX_POWER = 6.2, FRICTION = 0.987, MIN_SPEED = 0.05, BOUNCE = 0.92;
+    const AUDIO_COOLDOWN_MS = 70, PEER_PREFIX = 'mini-curling-room-', COLLISION_SOUND_URL = 'curling_sound.mp3';
+    const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
+
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const timeSelect = document.getElementById('timeSelect');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const rematchBtn = document.getElementById('rematchBtn');
+    const closeOverlayBtn = document.getElementById('closeOverlayBtn');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const copyInviteBtn = document.getElementById('copyInviteBtn');
+    const shareInviteBtn = document.getElementById('shareInviteBtn');
+    const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+    const saveNameBtn = document.getElementById('saveNameBtn');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const joinCodeInput = document.getElementById('joinCodeInput');
+    const turnDot = document.getElementById('turnDot');
+    const turnText = document.getElementById('turnText');
+    const timeText = document.getElementById('timeText');
+    const scoreText = document.getElementById('scoreText');
+    const blueRemain = document.getElementById('blueRemain');
+    const orangeRemain = document.getElementById('orangeRemain');
+    const resultText = document.getElementById('resultText');
+    const inviteLinkBox = document.getElementById('inviteLinkBox');
+    const onlineStatusText = document.getElementById('onlineStatusText');
+    const myTeamText = document.getElementById('myTeamText');
+    const roomCodeText = document.getElementById('roomCodeText');
+    const playersText = document.getElementById('playersText');
+    const roomModeText = document.getElementById('roomModeText');
+    const leaderboardEl = document.getElementById('leaderboard');
+    const powerFill = document.getElementById('powerFill');
+    const aimBadge = document.getElementById('aimBadge');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlaySub = document.getElementById('overlaySub');
+
+    let phase = 'lobby', turn = 'blue', timeLeft = 20, timerId = null, drag = null, particles = [];
+    let audioCtx = null, audioReady = false, lastSoundAt = 0, collisionAudio = null;
+    let suppressBroadcast = false, peer = null, conn = null, isHost = false, myTeam = 'blue', roomCode = '', playersConnected = 1;
+    let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
+    playerNameInput.value = playerName;
+
+    function ensureAudio() {
+      if (audioCtx) return audioCtx;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      audioCtx = new AudioCtx();
+      audioReady = true;
+      return audioCtx;
+    }
+    function setupCollisionAudio() {
+      collisionAudio = new Audio(COLLISION_SOUND_URL);
+      collisionAudio.preload = 'auto';
+      collisionAudio.playsInline = true;
+    }
+    function unlockAudio() {
+      const ctx = ensureAudio();
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (collisionAudio) {
+        collisionAudio.muted = true;
+        collisionAudio.play().then(() => { collisionAudio.pause(); collisionAudio.currentTime = 0; collisionAudio.muted = false; }).catch(() => {});
+      }
+    }
+    function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
+      const ctx = ensureAudio(); if (!ctx) return;
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = type; osc.frequency.setValueAtTime(freq, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      osc.connect(gain); gain.connect(ctx.destination); osc.start(startAt); osc.stop(startAt + duration + 0.02);
+    }
+    function playCollisionSound(intensity = 1) {
+      const now = performance.now();
+      if (!collisionAudio) return;
+      if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
+      lastSoundAt = now;
+      try {
+        const sfx = collisionAudio.cloneNode();
+        sfx.volume = Math.max(0.15, Math.min(0.9, intensity * 0.85));
+        sfx.currentTime = 0;
+        sfx.play().catch(() => {});
+      } catch {}
+    }
+    function playStartSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.12,'triangle',0.12); tone(523.25,t+0.12,0.12,'triangle',0.14); tone(659.25,t+0.24,0.18,'triangle',0.16); }
+    function playWinSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(523.25,t,0.12,'triangle',0.12); tone(659.25,t+0.11,0.12,'triangle',0.13); tone(783.99,t+0.22,0.14,'triangle',0.14); tone(1046.5,t+0.34,0.28,'triangle',0.16); }
+    function playDrawSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.14,'sine',0.1); tone(349.23,t+0.16,0.14,'sine',0.095); tone(392,t+0.34,0.2,'sine',0.09); }
+    function playLoseSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.12,'triangle',0.11); tone(329.63,t+0.13,0.14,'triangle',0.1); tone(261.63,t+0.28,0.2,'sawtooth',0.09); tone(196,t+0.5,0.28,'sine',0.08); }
+    function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+    function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
+    function octagonPoints(inset = OCTAGON_INSET) { return [{x:inset,y:TABLE_MARGIN},{x:BOARD_W-inset,y:TABLE_MARGIN},{x:BOARD_W-TABLE_MARGIN,y:inset},{x:BOARD_W-TABLE_MARGIN,y:BOARD_H-inset},{x:BOARD_W-inset,y:BOARD_H-TABLE_MARGIN},{x:inset,y:BOARD_H-TABLE_MARGIN},{x:TABLE_MARGIN,y:BOARD_H-inset},{x:TABLE_MARGIN,y:inset}]; }
+    function makeInitialStones() {
+      const laneYTop = TABLE_MARGIN + 92, laneYBottom = BOARD_H - TABLE_MARGIN - 92, startXs = [240, 320, 400, 480];
+      return [
+        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false })),
+        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false })),
+      ];
+    }
+    let stones = makeInitialStones(), score = { blue: 0, orange: 0 };
+    function inCircle(x, y) { return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R; }
+    function stoneScore(stone) {
+      if (stone.out) return 0;
+      const dist = Math.hypot(stone.x - CENTER_X, stone.y - CENTER_Y);
+      const nearestEdge = Math.max(0, dist - STONE_R);
+      if (nearestEdge <= INNER_RING_R) return 30;
+      if (nearestEdge <= MIDDLE_RING_R) return 20;
+      if (nearestEdge <= OUTER_RING_R) return 10;
+      return 0;
+    }
+    function countRemaining(team) { return stones.filter(s => s.team === team && !s.launched && !s.out).length; }
+    function allStopped() { return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED); }
+    function computeScores() {
+      score = {
+        blue: stones.filter(s => s.team === 'blue').reduce((sum, stone) => sum + stoneScore(stone), 0),
+        orange: stones.filter(s => s.team === 'orange').reduce((sum, stone) => sum + stoneScore(stone), 0)
+      };
+    }
+    function activateNextStone(team) { let activated = false; stones = stones.map(s => (!activated && s.team === team && !s.launched && !s.out) ? ((activated = true), { ...s, active: true }) : { ...s, active: false }); }
+    function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
+    function canControlTurn() { return phase === 'playing' && (!conn || myTeam === turn); }
+    function makeInviteLink() { if (!roomCode) return ''; const url = new URL(window.location.href); url.searchParams.set('room', roomCode); return url.toString(); }
+    function spawnParticles(x, y, color, intensity = 1) { const count = 8 + Math.floor(intensity * 10); for (let i = 0; i < count; i++) { const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * (2.5 + intensity * 2.2); particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 18 + Math.random() * 16, maxLife: 34, size: 2 + Math.random() * 4, color }); } }
+    function updateParticles() { particles = particles.filter(p => (p.x += p.vx, p.y += p.vy, p.vx *= 0.96, p.vy *= 0.96, p.life -= 1, p.life > 0)); }
+    function clampInTable(s) {
+      const points = octagonPoints();
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i], b = points[(i + 1) % points.length], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey), tx = ex / len, ty = ey / len, nx = -ty, ny = tx;
+        const dist = (s.x - a.x) * nx + (s.y - a.y) * ny;
+        if (dist < STONE_R) {
+          const push = STONE_R - dist; s.x += nx * push; s.y += ny * push;
+          const vn = s.vx * nx + s.vy * ny;
+          if (vn < 0) { const impact = Math.min(1, Math.abs(vn) / 4.5); playCollisionSound(impact * 0.8); vibrate(10); spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact); s.vx = s.vx - (1 + BOUNCE) * vn * nx; s.vy = s.vy - (1 + BOUNCE) * vn * ny; }
+        }
+      }
+      return s;
+    }
+    function resolveStoneCollisions() {
+      for (let i = 0; i < stones.length; i++) for (let j = i + 1; j < stones.length; j++) {
+        const a = stones[i], b = stones[j];
+        if (a.out || b.out) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), minDist = STONE_R * 2;
+        if (dist === 0 || dist >= minDist) continue;
+        const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
+        a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5; b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
+        const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
+        if (relVel > 0) continue;
+        const impulse = -relVel, impact = Math.min(1, Math.abs(impulse) / 5.5);
+        playCollisionSound(impact); vibrate(14); spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
+        a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
+      }
+    }
+
+    function loadLeaderboard() { try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); } catch { return []; } }
+    function saveLeaderboard(items) { localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10))); }
+    function escapeHtml(text) { return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function renderLeaderboard() {
+      const items = loadLeaderboard();
+      if (!items.length) { leaderboardEl.innerHTML = '<div class="small">아직 기록이 없습니다. 한 판 해보세요.</div>'; return; }
+      leaderboardEl.innerHTML = items.map((item, idx) => `<div class="leader-row"><div class="rank-badge">${idx + 1}</div><div><div style="font-weight:800;">${escapeHtml(item.name)}</div><div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div></div><div style="font-weight:800; color:#f8fafc;">${item.points} pt</div></div>`).join('');
+    }
+    function recordLeaderboard(result) {
+      const items = loadLeaderboard();
+      const existing = items.find(i => i.name === playerName);
+      if (existing) { existing.wins += result === 'win'; existing.losses += result === 'lose'; existing.draws += result === 'draw'; existing.points += score[myTeam]; }
+      else items.push({ name: playerName, wins: result === 'win' ? 1 : 0, losses: result === 'lose' ? 1 : 0, draws: result === 'draw' ? 1 : 0, points: score[myTeam] });
+      items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points); saveLeaderboard(items); renderLeaderboard();
+    }
+    function showOverlay(title, sub) { overlayTitle.textContent = title; overlaySub.textContent = sub; resultOverlay.classList.add('show'); }
+    function hideOverlay() { resultOverlay.classList.remove('show'); }
+    function resetTurnClock() { timeLeft = Number(timeSelect.value); }
+
+    function endGame() {
+      computeScores(); phase = 'ended';
+      let finalText = 'Draw', finalSub = `BLUE ${score.blue} : ORANGE ${score.orange}`;
+      if (score.blue === score.orange) { resultText.textContent = 'Draw'; playDrawSound(); recordLeaderboard('draw'); finalText = '무승부'; }
+      else if (score.blue > score.orange) { resultText.textContent = 'Blue Team Wins'; finalText = 'Blue Wins'; if (myTeam === 'blue') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
+      else { resultText.textContent = 'Orange Team Wins'; finalText = 'Orange Wins'; if (myTeam === 'orange') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
+      showOverlay(finalText, finalSub + ' · Rematch를 누르면 새 게임이 바로 시작됩니다.'); updateHud(); broadcastState();
+    }
+
+    function advanceTurn(forcedTimeout = false) {
+      if (forcedTimeout) {
+        const active = stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
+        if (active) stones = stones.map(s => s.id === active.id ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 } : s);
+      }
+      const nextPreferred = getNextTurn();
+      if (countRemaining(nextPreferred) > 0) turn = nextPreferred;
+      else if (countRemaining(turn) > 0) {}
+      else if (countRemaining('blue') > 0) turn = 'blue';
+      else if (countRemaining('orange') > 0) turn = 'orange';
+      if (countRemaining('blue') === 0 && countRemaining('orange') === 0) { if (allStopped()) endGame(); return; }
+      activateNextStone(turn); resetTurnClock(); updateHud(); broadcastState();
+    }
+
+    function resetGame() {
+      phase = 'lobby'; turn = 'blue'; resetTurnClock(); stones = makeInitialStones(); score = { blue: 0, orange: 0 }; particles = [];
+      resultText.textContent = 'Ready'; if (timerId) clearInterval(timerId); timerId = null; powerFill.style.height = '0%'; aimBadge.textContent = '당겨서 조준'; hideOverlay(); updateHud(); draw(); broadcastState();
+    }
+
+    function startGame() {
+      resetGame(); phase = 'playing'; resultText.textContent = 'Playing'; resetTurnClock(); playStartSound();
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(() => {
+        if (phase !== 'playing') return;
+        timeLeft = Math.max(0, timeLeft - 1);
+        if (timeLeft === 0) { if (!conn || isHost) advanceTurn(true); return; }
+        updateHud(); broadcastState({ timerOnly: true });
+      }, 1000);
+      updateHud(); broadcastState();
+    }
+
+    function updateHud() {
+      computeScores(); turnDot.style.background = COLORS[turn]; turnText.textContent = turn.toUpperCase(); timeText.textContent = `${timeLeft}s`; scoreText.textContent = `${score.blue} : ${score.orange}`;
+      blueRemain.textContent = countRemaining('blue'); orangeRemain.textContent = countRemaining('orange'); playersText.textContent = `${playersConnected} / 2`;
+      onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드'); myTeamText.textContent = myTeam.toUpperCase(); roomCodeText.textContent = roomCode || '-';
+      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'LOCAL'); startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false; timeSelect.disabled = conn ? !isHost : false; inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
+      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
+    }
+
+    function getCanvasPos(clientX, clientY) { const rect = canvas.getBoundingClientRect(); return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; }
+    function activeStoneForTurn() { return stones.find(s => s.active && s.team === turn && !s.launched && !s.out); }
+    function currentStatePayload(extra = {}) { return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, ...extra }; }
+    function applyRemoteState(payload) { suppressBroadcast = true; phase = payload.phase; turn = payload.turn; timeLeft = payload.timeLeft; if (payload.hostTime) timeSelect.value = String(payload.hostTime); if (payload.stones) stones = payload.stones; if (payload.score) score = payload.score; playersConnected = payload.playersConnected || playersConnected; updateHud(); suppressBroadcast = false; }
+    function sendMessage(data) { if (conn && conn.open) conn.send(data); }
+    function broadcastState(extra = {}) { if (suppressBroadcast || !isHost || !conn || !conn.open) return; sendMessage(currentStatePayload(extra)); }
+
+    function setConnectionHandlers(connection) {
+      conn = connection;
+      conn.on('open', () => { playersConnected = 2; updateHud(); sendMessage({ type: 'hello', playerName, team: myTeam }); if (isHost) broadcastState(); });
+      conn.on('data', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'hello') { playersConnected = 2; updateHud(); return; }
+        if (data.type === 'request_state' && isHost) { broadcastState(); return; }
+        if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
+        if (data.type === 'launch' && isHost) { const { stoneId, vx, vy } = data; stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s); broadcastState(); return; }
+        if (data.type === 'start' && !isHost) { startGame(); return; }
+        if (data.type === 'reset') { resetGame(); return; }
+        if (data.type === 'rematch') { startGame(); return; }
+      });
+      conn.on('close', () => { conn = null; playersConnected = 1; updateHud(); });
+      conn.on('error', () => { onlineStatusText.textContent = '연결 오류'; });
+    }
+
+    function teardownRoom() { if (conn) try { conn.close(); } catch {} if (peer) try { peer.destroy(); } catch {} conn = null; peer = null; isHost = false; myTeam = 'blue'; roomCode = ''; playersConnected = 1; history.replaceState({}, '', window.location.pathname); updateHud(); }
+    function createRoom() {
+      unlockAudio(); teardownRoom(); roomCode = randomCode(); isHost = true; myTeam = 'blue'; peer = new Peer(PEER_PREFIX + roomCode);
+      peer.on('open', () => { playersConnected = 1; updateHud(); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); });
+      peer.on('connection', (connection) => { if (conn && conn.open) { connection.close(); return; } setConnectionHandlers(connection); });
+      peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; }); updateHud();
+    }
+    function joinRoom(code) {
+      unlockAudio(); teardownRoom(); roomCode = code.toUpperCase(); isHost = false; myTeam = 'orange'; peer = new Peer();
+      peer.on('open', () => { const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true }); setConnectionHandlers(connection); connection.on('open', () => sendMessage({ type: 'request_state', playerName })); });
+      peer.on('error', () => { onlineStatusText.textContent = '참가 실패'; }); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); updateHud();
+    }
+    function copyInviteLink() { const link = makeInviteLink(); if (!link) return; navigator.clipboard?.writeText(link).then(() => { onlineStatusText.textContent = '초대 링크 복사됨'; }).catch(() => { inviteLinkBox.textContent = link; }); }
+    function shareInviteLink() { const link = makeInviteLink(); if (!link) return; if (navigator.share) navigator.share({ title: 'Mini Curling Invite', text: '같이 미니 컬링 한 판 해요!', url: link }).catch(() => {}); else copyInviteLink(); }
+    function launchStone(stoneId, vx, vy) { stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s); if (!conn || isHost) return; sendMessage({ type: 'launch', stoneId, vx, vy }); }
+
+    canvas.addEventListener('pointerdown', (e) => { unlockAudio(); if (phase !== 'playing' || !canControlTurn()) return; const p = getCanvasPos(e.clientX, e.clientY); const stone = activeStoneForTurn(); if (stone && Math.hypot(p.x - stone.x, p.y - stone.y) <= STONE_R + 8) drag = { stoneId: stone.id, startX: stone.x, startY: stone.y, currentX: p.x, currentY: p.y }; });
+    canvas.addEventListener('pointermove', (e) => { if (!drag) return; const p = getCanvasPos(e.clientX, e.clientY); drag.currentX = p.x; drag.currentY = p.y; const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy); const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100); powerFill.style.height = `${powerPct}%`; aimBadge.textContent = `Power ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`; });
+    function releaseDrag() { if (!drag) return; const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy), stoneId = drag.stoneId; drag = null; powerFill.style.height = '0%'; aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다'; if (len < 8) return; const power = Math.min(MAX_POWER, len / 22), vx = (dx / len) * power, vy = (dy / len) * power; launchStone(stoneId, vx, vy); }
+    canvas.addEventListener('pointerup', releaseDrag); canvas.addEventListener('pointerleave', releaseDrag); canvas.addEventListener('pointercancel', releaseDrag);
+
+    function drawBoard() {
+      const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75); grd.addColorStop(0, '#b55d27'); grd.addColorStop(0.58, '#93461c'); grd.addColorStop(1, '#5b2c14'); ctx.fillStyle = '#2b140b'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+      const outer = octagonPoints(), inner = octagonPoints(OCTAGON_INSET - 16); const makePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
+      makePath(outer); ctx.strokeStyle = '#d89a60'; ctx.lineWidth = 14; ctx.stroke(); makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#6b3418'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.save(); makePath(inner); ctx.clip();
+      const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220); shine.addColorStop(0, 'rgba(255,255,255,0.25)'); shine.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(251,191,36,0.22)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(59,130,246,0.24)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(239,68,68,0.30)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(17,24,39,0.95)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
+      ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
+      ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
+      ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
+      if (drag) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); }
+      for (const s of stones) { if (s.out) continue; ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill(); ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke(); ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill(); }
+      for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } ctx.globalAlpha = 1; ctx.restore();
+    }
+    function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
+    function step() {
+      if (phase === 'playing' && (!conn || isHost)) {
+        stones = stones.map(s => { if (s.out) return s; const next = { ...s }; next.x += next.vx; next.y += next.vy; next.vx *= FRICTION; next.vy *= FRICTION; if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0; if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0; return clampInTable(next); });
+        resolveStoneCollisions();
+        const stopped = allStopped(); const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
+        if (stopped && !hasActiveUnlaunched) { if (countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame(); else advanceTurn(false); }
+        if (conn && isHost) broadcastState();
+      }
+      updateParticles(); updateHud(); draw(); requestAnimationFrame(step);
+    }
+
+    saveNameBtn.addEventListener('click', () => { playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player'; localStorage.setItem('miniCurlingPlayerName', playerName); renderLeaderboard(); });
+    createRoomBtn.addEventListener('click', createRoom);
+    joinRoomBtn.addEventListener('click', () => { const code = (joinCodeInput.value || '').trim().toUpperCase(); if (code) joinRoom(code); });
+    copyInviteBtn.addEventListener('click', copyInviteLink); shareInviteBtn.addEventListener('click', shareInviteLink); leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
+    startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
+    resetBtn.addEventListener('click', () => { resetGame(); if (conn) sendMessage({ type: 'reset' }); });
+    rematchBtn.addEventListener('click', () => {
+      unlockAudio();
+      hideOverlay();
+      if (conn) {
+        if (!isHost) {
+          overlayTitle.textContent = '호스트가 다시 시작해야 합니다';
+          overlaySub.textContent = '온라인에서는 방을 만든 사람이 Rematch를 눌러 새 게임을 시작합니다.';
+          resultOverlay.classList.add('show');
+          return;
+        }
+        startGame();
+        sendMessage({ type: 'rematch' });
+        return;
+      }
+      startGame();
+    });
+    closeOverlayBtn.addEventListener('click', hideOverlay);
+    timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
+    function initFromQuery() { const room = new URLSearchParams(window.location.search).get('room'); if (room) joinCodeInput.value = room.toUpperCase(); }
+
+    ensureAudio(); setupCollisionAudio(); renderLeaderboard(); initFromQuery(); resetGame(); requestAnimationFrame(step);
+  </script>
+</body>
+</html>
