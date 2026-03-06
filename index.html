@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mini Curling Mobile Web</title>
+  <title>Mini Curling Mobile Web Online</title>
   <style>
     :root {
       --bg: #020617;
-      --panel: rgba(15, 23, 42, 0.88);
+      --panel: rgba(15, 23, 42, 0.9);
       --line: #1e293b;
       --text: #ffffff;
       --muted: #cbd5e1;
@@ -16,11 +16,14 @@
       --wood-1: #b55d27;
       --wood-2: #93461c;
       --wood-3: #5b2c14;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
     body { min-height: 100svh; }
-    .app { max-width: 860px; margin: 0 auto; padding: 14px; }
+    .app { max-width: 980px; margin: 0 auto; padding: 14px; }
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
@@ -31,19 +34,26 @@
     }
     h1 { margin: 0 0 6px; font-size: 24px; }
     .sub { color: var(--muted); font-size: 14px; line-height: 1.5; }
-    .toolbar, .stats, .rules { display: grid; gap: 10px; }
+    .toolbar, .stats, .rules, .online-grid, .bottom-grid { display: grid; gap: 10px; }
     .toolbar { margin-top: 14px; grid-template-columns: 1fr 1fr; }
-    .stats { grid-template-columns: repeat(3, 1fr); margin: 14px 0; }
+    .online-grid, .bottom-grid { grid-template-columns: 1.1fr .9fr; margin-top: 12px; }
+    .stats { grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
     .card { background: #020617; border: 1px solid var(--line); border-radius: 18px; padding: 12px; }
     .label { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
     .value { font-size: 20px; font-weight: bold; }
-    button, select {
+    .small { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    button, select, input {
       width: 100%; height: 48px; border-radius: 16px; border: 1px solid #334155;
-      background: #0f172a; color: white; font-size: 16px; font-weight: 700;
+      background: #0f172a; color: white; font-size: 16px; font-weight: 700; padding: 0 14px;
     }
     button.primary { background: #2563eb; border-color: #2563eb; }
-    button:disabled { opacity: .55; }
+    button.secondary { background: #0f172a; }
+    button.ghost { background: #111827; }
+    button.good { background: #166534; border-color: #166534; }
+    button.warn { background: #92400e; border-color: #92400e; }
+    button:disabled, select:disabled, input:disabled { opacity: .55; }
     .board-wrap {
+      position: relative;
       margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217, 154, 96, 0.28);
       box-shadow: inset 0 0 18px rgba(0,0,0,.25);
       background: #3c1e12;
@@ -51,37 +61,105 @@
     }
     canvas { display: block; width: 100%; height: auto; }
     .rules { margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.6; }
-    .result { margin-top: 10px; font-size: 18px; font-weight: 800; }
     .row { display:flex; gap:10px; align-items:center; }
     .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
-    @media (max-width: 640px) {
-      .toolbar, .stats { grid-template-columns: 1fr; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px;
+      background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted);
+    }
+    .status-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .link-box {
+      height: auto; min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151;
+      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5;
+    }
+    .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
+    .leader-row {
+      display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
+    }
+    .rank-badge {
+      width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; background: #172033; color: white;
+    }
+    .overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55));
+      opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    }
+    .overlay.show { opacity: 1; }
+    .overlay-card {
+      min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px;
+      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35);
+      transform: translateY(12px) scale(.98); transition: transform .25s ease;
+    }
+    .overlay.show .overlay-card { transform: translateY(0) scale(1); }
+    .overlay-title { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
+    .power-wrap {
+      position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
+      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden;
+    }
+    .power-fill {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+      background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%);
+      transition: height .05s linear;
+    }
+    .aim-badge {
+      position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px;
+      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0;
+    }
+    @media (max-width: 760px) {
+      .toolbar, .online-grid, .bottom-grid, .stats { grid-template-columns: 1fr; }
       h1 { font-size: 22px; }
+      .value { font-size: 18px; }
     }
   </style>
+  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
 </head>
 <body>
   <div class="app">
     <div class="panel">
-      <h1>Mini Curling Mobile Web</h1>
-      <div class="sub">휴대폰에서 바로 열어 테스트할 수 있는 웹 버전입니다. 현재 버전은 같은 기기에서 번갈아 플레이하는 로컬 대전용입니다.</div>
+      <h1>Mini Curling Mobile Web Online</h1>
+      <div class="sub">방 만들기, 초대 링크, 온라인 2인 대전, 파워 게이지, 조준 가이드, 충돌 파티클, 승리 화면, 랭킹 저장까지 한 번에 들어간 버전입니다.</div>
 
-      <div class="toolbar">
+      <div class="online-grid">
         <div class="card">
-          <div class="label">Match time</div>
-          <select id="timeSelect">
-            <option value="30">30 seconds</option>
-            <option value="40">40 seconds</option>
-            <option value="50">50 seconds</option>
-            <option value="60">60 seconds</option>
-          </select>
+          <div class="label">Online match</div>
+          <div class="row" style="margin-bottom:10px;">
+            <input id="playerNameInput" placeholder="내 이름 (예: Sarang)" maxlength="20" />
+            <button id="saveNameBtn" class="secondary">저장</button>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <button id="createRoomBtn" class="primary">방 만들기</button>
+            <input id="joinCodeInput" placeholder="방 코드 입력" maxlength="12" />
+            <button id="joinRoomBtn" class="good">참가</button>
+          </div>
+          <div class="row" style="margin-bottom:10px;">
+            <button id="copyInviteBtn" class="secondary">초대 링크 복사</button>
+            <button id="shareInviteBtn" class="secondary">공유</button>
+            <button id="leaveRoomBtn" class="warn">방 나가기</button>
+          </div>
+          <div class="link-box" id="inviteLinkBox">방을 만들면 초대 링크가 여기에 표시됩니다.</div>
+          <div class="status-line">
+            <span class="pill">상태: <strong id="onlineStatusText">오프라인 로컬 모드</strong></span>
+            <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
+            <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
+          </div>
+          <div class="small" style="margin-top:10px;">PeerJS는 브라우저 간 P2P 연결을 쉽게 해주고, 무료 클라우드 PeerServer 또는 자체 서버를 사용할 수 있습니다. 공식 사이트 기준으로 PeerJS는 브라우저용 P2P 연결과 무료 클라우드 서버를 지원합니다. ([peerjs.com](https://peerjs.com/?utm_source=chatgpt.com))</div>
         </div>
         <div class="card">
-          <div class="label">Controls</div>
+          <div class="label">Match setup</div>
           <div class="row">
+            <select id="timeSelect">
+              <option value="30">30 seconds</option>
+              <option value="40">40 seconds</option>
+              <option value="50">50 seconds</option>
+              <option value="60">60 seconds</option>
+            </select>
             <button id="startBtn" class="primary">Start Match</button>
-            <button id="resetBtn">Reset</button>
+            <button id="resetBtn" class="secondary">Reset</button>
           </div>
+          <div class="small" style="margin-top:10px;">방장이 시간 설정과 시작을 담당합니다. 온라인이면 방장 화면 기준으로 상대에게도 동기화됩니다.</div>
         </div>
       </div>
 
@@ -98,10 +176,26 @@
           <div class="label">Score</div>
           <div class="value" id="scoreText">0 : 0</div>
         </div>
+        <div class="card">
+          <div class="label">Room mode</div>
+          <div class="value" id="roomModeText">LOCAL</div>
+        </div>
       </div>
 
       <div class="board-wrap">
         <canvas id="board" width="720" height="960"></canvas>
+        <div class="aim-badge" id="aimBadge">당겨서 조준</div>
+        <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
+        <div class="overlay" id="resultOverlay">
+          <div class="overlay-card">
+            <div class="overlay-title" id="overlayTitle">Ready</div>
+            <div class="overlay-sub" id="overlaySub">방을 만들거나 참가한 뒤 시작하세요.</div>
+            <div class="row">
+              <button id="rematchBtn" class="primary">Rematch</button>
+              <button id="closeOverlayBtn" class="secondary">Close</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="stats">
@@ -117,16 +211,32 @@
           <div class="label">Result</div>
           <div class="value" id="resultText">Ready</div>
         </div>
+        <div class="card">
+          <div class="label">Players</div>
+          <div class="value" id="playersText">1 / 2</div>
+        </div>
       </div>
 
-      <div class="rules">
-        <div>• 아래 파란 돌과 위 주황 돌이 번갈아 한 개씩 움직입니다.</div>
-        <div>• 팀당 4개씩 있습니다.</div>
-        <div>• 손가락으로 끌어 점선 방향대로 발사합니다.</div>
-        <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
-        <div>• 돌끼리 부딪히거나 벽에 강하게 부딪히면 효과음이 납니다.</div>
-        <div>• 게임 시작 / 승리 / 패배 / 무승부 사운드가 함께 들어 있습니다.</div>
-        <div>• 중앙 원 안에 남은 돌 1개당 10점입니다.</div>
+      <div class="bottom-grid">
+        <div class="card">
+          <div class="label">How to play</div>
+          <div class="rules">
+            <div>• 아래 파란 돌과 위 주황 돌이 번갈아 한 개씩 움직입니다.</div>
+            <div>• 온라인에서는 방장 = 파랑, 참가자 = 주황으로 자동 배정됩니다.</div>
+            <div>• 손가락으로 끌어 점선 방향대로 발사합니다.</div>
+            <div>• 오른쪽 파워 게이지로 세기를 보고, 왼쪽 배지로 현재 조준 상태를 확인할 수 있습니다.</div>
+            <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
+            <div>• 돌끼리 부딪히거나 벽에 강하게 부딪히면 효과음과 파티클이 납니다.</div>
+            <div>• 게임 시작 / 승리 / 패배 / 무승부 사운드가 함께 들어 있습니다.</div>
+            <div>• 중앙 원 안에 남은 돌 1개당 10점입니다.</div>
+            <div>• 모바일이면 충돌 시 짧은 진동도 발생합니다.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label">Leaderboard (이 기기 저장)</div>
+          <div class="small">이 랭킹은 현재 브라우저 localStorage에 저장됩니다. 온라인 글로벌 랭킹 서버는 아직 붙이지 않았습니다.</div>
+          <div class="leaderboard" id="leaderboard"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -144,14 +254,25 @@
     const FRICTION = 0.987;
     const MIN_SPEED = 0.05;
     const BOUNCE = 0.92;
-    const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const AUDIO_COOLDOWN_MS = 70;
+    const PEER_PREFIX = 'mini-curling-room-';
+    const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const canvas = document.getElementById('board');
     const ctx = canvas.getContext('2d');
     const timeSelect = document.getElementById('timeSelect');
     const startBtn = document.getElementById('startBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const rematchBtn = document.getElementById('rematchBtn');
+    const closeOverlayBtn = document.getElementById('closeOverlayBtn');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const copyInviteBtn = document.getElementById('copyInviteBtn');
+    const shareInviteBtn = document.getElementById('shareInviteBtn');
+    const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+    const saveNameBtn = document.getElementById('saveNameBtn');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const joinCodeInput = document.getElementById('joinCodeInput');
     const turnDot = document.getElementById('turnDot');
     const turnText = document.getElementById('turnText');
     const timeText = document.getElementById('timeText');
@@ -159,16 +280,38 @@
     const blueRemain = document.getElementById('blueRemain');
     const orangeRemain = document.getElementById('orangeRemain');
     const resultText = document.getElementById('resultText');
+    const inviteLinkBox = document.getElementById('inviteLinkBox');
+    const onlineStatusText = document.getElementById('onlineStatusText');
+    const myTeamText = document.getElementById('myTeamText');
+    const roomCodeText = document.getElementById('roomCodeText');
+    const playersText = document.getElementById('playersText');
+    const roomModeText = document.getElementById('roomModeText');
+    const leaderboardEl = document.getElementById('leaderboard');
+    const powerFill = document.getElementById('powerFill');
+    const aimBadge = document.getElementById('aimBadge');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlaySub = document.getElementById('overlaySub');
 
     let phase = 'lobby';
     let turn = 'blue';
     let timeLeft = 30;
     let timerId = null;
-    let lastFrame = 0;
     let drag = null;
+    let particles = [];
     let audioCtx = null;
     let audioReady = false;
     let lastSoundAt = 0;
+    let suppressBroadcast = false;
+    let peer = null;
+    let conn = null;
+    let isHost = false;
+    let myTeam = 'blue';
+    let roomCode = '';
+    let playersConnected = 1;
+    let lastRemoteStateAt = 0;
+    let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
+    playerNameInput.value = playerName;
 
     function ensureAudio() {
       if (audioCtx) return audioCtx;
@@ -182,9 +325,7 @@
     function unlockAudio() {
       const ctx = ensureAudio();
       if (!ctx) return;
-      if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-      }
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     }
 
     function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
@@ -208,9 +349,7 @@
       if (!ctx) return;
       const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
       const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-      }
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
       const source = ctx.createBufferSource();
       const filter = ctx.createBiquadFilter();
       const gain = ctx.createGain();
@@ -233,7 +372,6 @@
       if (!ctx || !audioReady) return;
       if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
       lastSoundAt = now;
-
       const t = ctx.currentTime;
       const volume = Math.max(0.05, Math.min(0.22, intensity * 0.2));
       noiseHit(t, 0.06, volume);
@@ -242,8 +380,7 @@
     }
 
     function playStartSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.12);
       tone(523.25, t + 0.12, 0.12, 'triangle', 0.14);
@@ -251,8 +388,7 @@
     }
 
     function playWinSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(523.25, t, 0.12, 'triangle', 0.12);
       tone(659.25, t + 0.11, 0.12, 'triangle', 0.13);
@@ -261,8 +397,7 @@
     }
 
     function playDrawSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.14, 'sine', 0.1);
       tone(349.23, t + 0.16, 0.14, 'sine', 0.095);
@@ -270,13 +405,33 @@
     }
 
     function playLoseSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.11);
       tone(329.63, t + 0.13, 0.14, 'triangle', 0.1);
       tone(261.63, t + 0.28, 0.2, 'sawtooth', 0.09);
       tone(196, t + 0.5, 0.28, 'sine', 0.08);
+    }
+
+    function vibrate(ms = 18) {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    function randomCode() {
+      return Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    function octagonPoints(inset = OCTAGON_INSET) {
+      return [
+        { x: inset, y: TABLE_MARGIN },
+        { x: BOARD_W - inset, y: TABLE_MARGIN },
+        { x: BOARD_W - TABLE_MARGIN, y: inset },
+        { x: BOARD_W - TABLE_MARGIN, y: BOARD_H - inset },
+        { x: BOARD_W - inset, y: BOARD_H - TABLE_MARGIN },
+        { x: inset, y: BOARD_H - TABLE_MARGIN },
+        { x: TABLE_MARGIN, y: BOARD_H - inset },
+        { x: TABLE_MARGIN, y: inset },
+      ];
     }
 
     function makeInitialStones() {
@@ -291,19 +446,6 @@
 
     let stones = makeInitialStones();
     let score = { blue: 0, orange: 0 };
-
-    function octagonPoints(inset = OCTAGON_INSET) {
-      return [
-        { x: inset, y: TABLE_MARGIN },
-        { x: BOARD_W - inset, y: TABLE_MARGIN },
-        { x: BOARD_W - TABLE_MARGIN, y: inset },
-        { x: BOARD_W - TABLE_MARGIN, y: BOARD_H - inset },
-        { x: BOARD_W - inset, y: BOARD_H - TABLE_MARGIN },
-        { x: inset, y: BOARD_H - TABLE_MARGIN },
-        { x: TABLE_MARGIN, y: BOARD_H - inset },
-        { x: TABLE_MARGIN, y: inset },
-      ];
-    }
 
     function inCircle(x, y) {
       return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R;
@@ -338,6 +480,45 @@
       return turn === 'blue' ? 'orange' : 'blue';
     }
 
+    function canControlTurn() {
+      return !conn || myTeam === turn;
+    }
+
+    function makeInviteLink() {
+      if (!roomCode) return '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', roomCode);
+      return url.toString();
+    }
+
+    function spawnParticles(x, y, color, intensity = 1) {
+      const count = 8 + Math.floor(intensity * 10);
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * (2.5 + intensity * 2.2);
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 18 + Math.random() * 16,
+          maxLife: 34,
+          size: 2 + Math.random() * 4,
+          color
+        });
+      }
+    }
+
+    function updateParticles() {
+      particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.life -= 1;
+        return p.life > 0;
+      });
+    }
+
     function clampInTable(s) {
       const points = octagonPoints();
       for (let i = 0; i < points.length; i++) {
@@ -359,6 +540,8 @@
           if (vn < 0) {
             const impact = Math.min(1, Math.abs(vn) / 4.5);
             playCollisionSound(impact * 0.8);
+            vibrate(10);
+            spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
             s.vx = s.vx - (1 + BOUNCE) * vn * nx;
             s.vy = s.vy - (1 + BOUNCE) * vn * ny;
           }
@@ -391,6 +574,8 @@
           const impulse = -relVel;
           const impact = Math.min(1, Math.abs(impulse) / 5.5);
           playCollisionSound(impact);
+          vibrate(14);
+          spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
           a.vx += -impulse * nx;
           a.vy += -impulse * ny;
           b.vx += impulse * nx;
@@ -399,20 +584,106 @@
       }
     }
 
+    function loadLeaderboard() {
+      try {
+        return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLeaderboard(items) {
+      localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10)));
+    }
+
+    function recordLeaderboard(result) {
+      const items = loadLeaderboard();
+      const existing = items.find(i => i.name === playerName);
+      if (existing) {
+        existing.wins += result === 'win' ? 1 : 0;
+        existing.losses += result === 'lose' ? 1 : 0;
+        existing.draws += result === 'draw' ? 1 : 0;
+        existing.points += score[myTeam];
+      } else {
+        items.push({
+          name: playerName,
+          wins: result === 'win' ? 1 : 0,
+          losses: result === 'lose' ? 1 : 0,
+          draws: result === 'draw' ? 1 : 0,
+          points: score[myTeam]
+        });
+      }
+      items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points);
+      saveLeaderboard(items);
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard() {
+      const items = loadLeaderboard();
+      if (!items.length) {
+        leaderboardEl.innerHTML = '<div class="small">아직 기록이 없습니다. 한 판 해보세요.</div>';
+        return;
+      }
+      leaderboardEl.innerHTML = items.map((item, idx) => `
+        <div class="leader-row">
+          <div class="rank-badge">${idx + 1}</div>
+          <div>
+            <div style="font-weight:800;">${escapeHtml(item.name)}</div>
+            <div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div>
+          </div>
+          <div style="font-weight:800; color:#f8fafc;">${item.points} pt</div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function showOverlay(title, sub) {
+      overlayTitle.textContent = title;
+      overlaySub.textContent = sub;
+      resultOverlay.classList.add('show');
+    }
+
+    function hideOverlay() {
+      resultOverlay.classList.remove('show');
+    }
+
     function endGame() {
       computeScores();
       phase = 'ended';
+      let finalText = 'Draw';
+      let finalSub = `BLUE ${score.blue} : ORANGE ${score.orange}`;
       if (score.blue === score.orange) {
         resultText.textContent = 'Draw';
         playDrawSound();
+        recordLeaderboard('draw');
+        finalText = '무승부';
       } else if (score.blue > score.orange) {
         resultText.textContent = 'Blue Team Wins';
-        playWinSound();
+        finalText = 'Blue Wins';
+        if (myTeam === 'blue') {
+          playWinSound();
+          recordLeaderboard('win');
+        } else {
+          playLoseSound();
+          recordLeaderboard('lose');
+        }
       } else {
         resultText.textContent = 'Orange Team Wins';
-        playLoseSound();
+        finalText = 'Orange Wins';
+        if (myTeam === 'orange') {
+          playWinSound();
+          recordLeaderboard('win');
+        } else {
+          playLoseSound();
+          recordLeaderboard('lose');
+        }
       }
+      showOverlay(finalText, finalSub + ' · Rematch로 다시 시작할 수 있습니다.');
       updateHud();
+      broadcastState();
     }
 
     function resetGame() {
@@ -421,11 +692,16 @@
       timeLeft = Number(timeSelect.value);
       stones = makeInitialStones();
       score = { blue: 0, orange: 0 };
+      particles = [];
       resultText.textContent = 'Ready';
       if (timerId) clearInterval(timerId);
       timerId = null;
+      powerFill.style.height = '0%';
+      aimBadge.textContent = '당겨서 조준';
+      hideOverlay();
       updateHud();
       draw();
+      broadcastState();
     }
 
     function startGame() {
@@ -438,8 +714,10 @@
         timeLeft = Math.max(0, timeLeft - 1);
         if (timeLeft === 0) endGame();
         updateHud();
+        broadcastState({ timerOnly: true });
       }, 1000);
       updateHud();
+      broadcastState();
     }
 
     function updateHud() {
@@ -450,6 +728,14 @@
       scoreText.textContent = `${score.blue} : ${score.orange}`;
       blueRemain.textContent = countRemaining('blue');
       orangeRemain.textContent = countRemaining('orange');
+      playersText.textContent = `${playersConnected} / 2`;
+      onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드');
+      myTeamText.textContent = myTeam.toUpperCase();
+      roomCodeText.textContent = roomCode || '-';
+      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'LOCAL');
+      startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
+      timeSelect.disabled = conn ? !isHost : false;
+      inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
     }
 
     function getCanvasPos(clientX, clientY) {
@@ -464,9 +750,202 @@
       return stones.find(s => s.active && s.team === turn && !s.launched);
     }
 
+    function currentStatePayload(extra = {}) {
+      return {
+        type: 'state',
+        roomCode,
+        phase,
+        turn,
+        timeLeft,
+        hostTime: Number(timeSelect.value),
+        stones,
+        score,
+        playersConnected,
+        sentAt: Date.now(),
+        ...extra
+      };
+    }
+
+    function applyRemoteState(payload) {
+      suppressBroadcast = true;
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      phase = payload.phase;
+      turn = payload.turn;
+      timeLeft = payload.timeLeft;
+      if (payload.hostTime) timeSelect.value = String(payload.hostTime);
+      if (payload.stones) stones = payload.stones;
+      if (payload.score) score = payload.score;
+      playersConnected = payload.playersConnected || playersConnected;
+      lastRemoteStateAt = Date.now();
+      if (phase === 'playing' && !timerId) {
+        timerId = setInterval(() => {
+          if (phase !== 'playing' || isHost) return;
+          const lag = Math.floor((Date.now() - lastRemoteStateAt) / 1000);
+          timeLeft = Math.max(0, payload.timeLeft - lag);
+          updateHud();
+        }, 250);
+      }
+      updateHud();
+      if (phase === 'ended') hideOverlay();
+      suppressBroadcast = false;
+    }
+
+    function sendMessage(data) {
+      if (conn && conn.open) conn.send(data);
+    }
+
+    function broadcastState(extra = {}) {
+      if (suppressBroadcast || !isHost || !conn || !conn.open) return;
+      sendMessage(currentStatePayload(extra));
+    }
+
+    function setConnectionHandlers(connection) {
+      conn = connection;
+      conn.on('open', () => {
+        playersConnected = 2;
+        updateHud();
+        sendMessage({ type: 'hello', playerName, team: myTeam });
+        if (isHost) broadcastState();
+      });
+      conn.on('data', (data) => {
+        if (!data || typeof data !== 'object') return;
+        if (data.type === 'hello') {
+          playersConnected = 2;
+          updateHud();
+          return;
+        }
+        if (data.type === 'request_state' && isHost) {
+          broadcastState();
+          return;
+        }
+        if (data.type === 'state' && !isHost) {
+          applyRemoteState(data);
+          return;
+        }
+        if (data.type === 'launch' && isHost) {
+          const { stoneId, vx, vy } = data;
+          stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
+          broadcastState();
+          return;
+        }
+        if (data.type === 'start' && !isHost) {
+          startGame();
+          return;
+        }
+        if (data.type === 'reset') {
+          resetGame();
+          return;
+        }
+        if (data.type === 'rematch') {
+          resetGame();
+          return;
+        }
+      });
+      conn.on('close', () => {
+        conn = null;
+        playersConnected = 1;
+        updateHud();
+      });
+      conn.on('error', () => {
+        onlineStatusText.textContent = '연결 오류';
+      });
+    }
+
+    function teardownRoom() {
+      if (conn) { try { conn.close(); } catch {} }
+      if (peer) { try { peer.destroy(); } catch {} }
+      conn = null;
+      peer = null;
+      isHost = false;
+      myTeam = 'blue';
+      roomCode = '';
+      playersConnected = 1;
+      history.replaceState({}, '', window.location.pathname);
+      updateHud();
+    }
+
+    function createRoom() {
+      unlockAudio();
+      teardownRoom();
+      roomCode = randomCode();
+      isHost = true;
+      myTeam = 'blue';
+      peer = new Peer(PEER_PREFIX + roomCode);
+      peer.on('open', () => {
+        playersConnected = 1;
+        updateHud();
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', roomCode);
+        history.replaceState({}, '', url);
+      });
+      peer.on('connection', (connection) => {
+        if (conn && conn.open) { connection.close(); return; }
+        setConnectionHandlers(connection);
+      });
+      peer.on('error', (err) => {
+        onlineStatusText.textContent = '방 생성 실패';
+        console.error(err);
+      });
+      updateHud();
+    }
+
+    function joinRoom(code) {
+      unlockAudio();
+      teardownRoom();
+      roomCode = code.toUpperCase();
+      isHost = false;
+      myTeam = 'orange';
+      peer = new Peer();
+      peer.on('open', () => {
+        const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
+        setConnectionHandlers(connection);
+        connection.on('open', () => {
+          sendMessage({ type: 'request_state', playerName });
+        });
+      });
+      peer.on('error', (err) => {
+        onlineStatusText.textContent = '참가 실패';
+        console.error(err);
+      });
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', roomCode);
+      history.replaceState({}, '', url);
+      updateHud();
+    }
+
+    function copyInviteLink() {
+      const link = makeInviteLink();
+      if (!link) return;
+      navigator.clipboard?.writeText(link).then(() => {
+        onlineStatusText.textContent = '초대 링크 복사됨';
+      }).catch(() => {
+        inviteLinkBox.textContent = link;
+      });
+    }
+
+    function shareInviteLink() {
+      const link = makeInviteLink();
+      if (!link) return;
+      if (navigator.share) {
+        navigator.share({ title: 'Mini Curling Invite', text: '같이 미니 컬링 한 판 해요!', url: link }).catch(() => {});
+      } else {
+        copyInviteLink();
+      }
+    }
+
+    function launchStone(stoneId, vx, vy) {
+      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
+      if (isHost) broadcastState();
+      else sendMessage({ type: 'launch', stoneId, vx, vy });
+    }
+
     canvas.addEventListener('pointerdown', (e) => {
       unlockAudio();
       if (phase !== 'playing') return;
+      if (!canControlTurn()) return;
       const p = getCanvasPos(e.clientX, e.clientY);
       const stone = activeStoneForTurn();
       if (!stone) return;
@@ -480,6 +959,12 @@
       const p = getCanvasPos(e.clientX, e.clientY);
       drag.currentX = p.x;
       drag.currentY = p.y;
+      const dx = drag.currentX - drag.startX;
+      const dy = drag.currentY - drag.startY;
+      const len = Math.hypot(dx, dy);
+      const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100);
+      powerFill.style.height = `${powerPct}%`;
+      aimBadge.textContent = `Power ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
     });
 
     function releaseDrag() {
@@ -489,28 +974,18 @@
       const len = Math.hypot(dx, dy);
       const stoneId = drag.stoneId;
       drag = null;
+      powerFill.style.height = '0%';
+      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
       if (len < 8) return;
       const power = Math.min(MAX_POWER, len / 22);
       const vx = (dx / len) * power;
       const vy = (dy / len) * power;
-      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
+      launchStone(stoneId, vx, vy);
     }
 
     canvas.addEventListener('pointerup', releaseDrag);
     canvas.addEventListener('pointerleave', releaseDrag);
     canvas.addEventListener('pointercancel', releaseDrag);
-
-    startBtn.addEventListener('click', () => {
-      unlockAudio();
-      startGame();
-    });
-    resetBtn.addEventListener('click', resetGame);
-    timeSelect.addEventListener('change', () => {
-      if (phase !== 'playing') {
-        timeLeft = Number(timeSelect.value);
-        updateHud();
-      }
-    });
 
     function drawBoard() {
       const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75);
@@ -522,7 +997,6 @@
 
       const outer = octagonPoints();
       const inner = octagonPoints(OCTAGON_INSET - 16);
-
       const makePath = (pts) => {
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -568,7 +1042,7 @@
       ctx.stroke();
 
       if (drag) {
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = 'rgba(255,255,255,.95)';
         ctx.lineWidth = 7;
         ctx.setLineDash([10, 10]);
         ctx.beginPath();
@@ -583,7 +1057,7 @@
       }
 
       for (const s of stones) {
-        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
         ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
         ctx.lineWidth = s.active ? 5 : 2;
         ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)';
@@ -591,44 +1065,15 @@
         ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
       }
 
-      ctx.restore();
-    }
-
-    function step() {
-      if (phase === 'playing') {
-        stones = stones.map(s => {
-          const next = { ...s };
-          next.x += next.vx;
-          next.y += next.vy;
-          next.vx *= FRICTION;
-          next.vy *= FRICTION;
-          if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
-          if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
-          return clampInTable(next);
-        });
-        resolveStoneCollisions();
-
-        const stopped = allStopped();
-        const hasActiveUnlaunched = stones.some(s => s.active && !s.launched);
-        if (stopped && !hasActiveUnlaunched) {
-          const currentRemain = countRemaining(turn);
-          if (currentRemain > 0) {
-            activateNextStone(turn);
-          } else {
-            turn = getNextTurn();
-            if (countRemaining(turn) > 0) {
-              activateNextStone(turn);
-            }
-          }
-        }
-
-        if (stopped && countRemaining('blue') === 0 && countRemaining('orange') === 0) {
-          endGame();
-        }
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
       }
-      updateHud();
-      draw();
-      requestAnimationFrame(step);
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     function draw() {
@@ -636,7 +1081,97 @@
       drawBoard();
     }
 
+    function step() {
+      if (phase === 'playing') {
+        if (!conn || isHost) {
+          stones = stones.map(s => {
+            const next = { ...s };
+            next.x += next.vx;
+            next.y += next.vy;
+            next.vx *= FRICTION;
+            next.vy *= FRICTION;
+            if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
+            if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
+            return clampInTable(next);
+          });
+          resolveStoneCollisions();
+
+          const stopped = allStopped();
+          const hasActiveUnlaunched = stones.some(s => s.active && !s.launched);
+          if (stopped && !hasActiveUnlaunched) {
+            const currentRemain = countRemaining(turn);
+            if (currentRemain > 0) {
+              activateNextStone(turn);
+            } else {
+              turn = getNextTurn();
+              if (countRemaining(turn) > 0) activateNextStone(turn);
+            }
+            broadcastState();
+          }
+          if (stopped && countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame();
+        }
+      }
+      updateParticles();
+      updateHud();
+      draw();
+      requestAnimationFrame(step);
+    }
+
+    saveNameBtn.addEventListener('click', () => {
+      playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
+      localStorage.setItem('miniCurlingPlayerName', playerName);
+      renderLeaderboard();
+    });
+
+    createRoomBtn.addEventListener('click', createRoom);
+    joinRoomBtn.addEventListener('click', () => {
+      const code = (joinCodeInput.value || '').trim().toUpperCase();
+      if (!code) return;
+      joinRoom(code);
+    });
+    copyInviteBtn.addEventListener('click', copyInviteLink);
+    shareInviteBtn.addEventListener('click', shareInviteLink);
+    leaveRoomBtn.addEventListener('click', () => {
+      teardownRoom();
+      resetGame();
+    });
+
+    startBtn.addEventListener('click', () => {
+      unlockAudio();
+      if (conn && !isHost) return;
+      startGame();
+      if (conn && isHost) sendMessage({ type: 'start' });
+    });
+    resetBtn.addEventListener('click', () => {
+      resetGame();
+      if (conn) sendMessage({ type: 'reset' });
+    });
+    rematchBtn.addEventListener('click', () => {
+      hideOverlay();
+      resetGame();
+      if (conn) sendMessage({ type: 'rematch' });
+    });
+    closeOverlayBtn.addEventListener('click', hideOverlay);
+
+    timeSelect.addEventListener('change', () => {
+      if (phase !== 'playing') {
+        timeLeft = Number(timeSelect.value);
+        updateHud();
+        broadcastState();
+      }
+    });
+
+    function initFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const room = params.get('room');
+      if (room) {
+        joinCodeInput.value = room.toUpperCase();
+      }
+    }
+
     ensureAudio();
+    renderLeaderboard();
+    initFromQuery();
     resetGame();
     requestAnimationFrame(step);
   </script>
