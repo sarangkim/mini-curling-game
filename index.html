@@ -147,8 +147,8 @@
             <div>• 각 턴마다 제한 시간이 새로 시작됩니다.</div>
             <div>• 턴 시간 안에 움직이지 못하면 그 컬링은 기권 처리됩니다.</div>
             <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
-            <div>• 중앙 원 안에 남은 컬링 1개당 10점입니다.</div>
-            <div>• 충돌음은 업로드한 <b>curling_sound.m4a</b> 파일을 사용합니다. GitHub에도 같은 파일을 같이 올려야 합니다.</div>
+            <div>• 중심에 가장 가까운 원에 닿으면 30점, 그다음 원은 20점, 바깥 원은 10점입니다.</div>
+            <div>• 충돌음은 업로드한 <b>curling_sound.mp3</b> 파일을 사용합니다. GitHub에도 같은 파일을 같이 올려야 합니다.</div>
           </div>
         </div>
         <div class="card">
@@ -163,8 +163,11 @@
   <script>
     const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
     const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
+    const OUTER_RING_R = SCORING_R;
+    const MIDDLE_RING_R = SCORING_R * 0.66;
+    const INNER_RING_R = SCORING_R * 0.3;
     const MAX_POWER = 6.2, FRICTION = 0.987, MIN_SPEED = 0.05, BOUNCE = 0.92;
-    const AUDIO_COOLDOWN_MS = 70, PEER_PREFIX = 'mini-curling-room-', COLLISION_SOUND_URL = 'curling_sound.m4a';
+    const AUDIO_COOLDOWN_MS = 70, PEER_PREFIX = 'mini-curling-room-', COLLISION_SOUND_URL = 'curling_sound.mp3';
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const canvas = document.getElementById('board');
@@ -267,9 +270,23 @@
     }
     let stones = makeInitialStones(), score = { blue: 0, orange: 0 };
     function inCircle(x, y) { return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R; }
+    function stoneScore(stone) {
+      if (stone.out) return 0;
+      const dist = Math.hypot(stone.x - CENTER_X, stone.y - CENTER_Y);
+      const nearestEdge = Math.max(0, dist - STONE_R);
+      if (nearestEdge <= INNER_RING_R) return 30;
+      if (nearestEdge <= MIDDLE_RING_R) return 20;
+      if (nearestEdge <= OUTER_RING_R) return 10;
+      return 0;
+    }
     function countRemaining(team) { return stones.filter(s => s.team === team && !s.launched && !s.out).length; }
     function allStopped() { return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED); }
-    function computeScores() { score = { blue: stones.filter(s => s.team === 'blue' && !s.out && inCircle(s.x, s.y)).length * 10, orange: stones.filter(s => s.team === 'orange' && !s.out && inCircle(s.x, s.y)).length * 10 }; }
+    function computeScores() {
+      score = {
+        blue: stones.filter(s => s.team === 'blue').reduce((sum, stone) => sum + stoneScore(stone), 0),
+        orange: stones.filter(s => s.team === 'orange').reduce((sum, stone) => sum + stoneScore(stone), 0)
+      };
+    }
     function activateNextStone(team) { let activated = false; stones = stones.map(s => (!activated && s.team === team && !s.launched && !s.out) ? ((activated = true), { ...s, active: true }) : { ...s, active: false }); }
     function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
     function canControlTurn() { return phase === 'playing' && (!conn || myTeam === turn); }
@@ -330,7 +347,7 @@
       if (score.blue === score.orange) { resultText.textContent = 'Draw'; playDrawSound(); recordLeaderboard('draw'); finalText = '무승부'; }
       else if (score.blue > score.orange) { resultText.textContent = 'Blue Team Wins'; finalText = 'Blue Wins'; if (myTeam === 'blue') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
       else { resultText.textContent = 'Orange Team Wins'; finalText = 'Orange Wins'; if (myTeam === 'orange') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
-      showOverlay(finalText, finalSub + ' · Rematch로 다시 시작할 수 있습니다.'); updateHud(); broadcastState();
+      showOverlay(finalText, finalSub + ' · Rematch를 누르면 새 게임이 바로 시작됩니다.'); updateHud(); broadcastState();
     }
 
     function advanceTurn(forcedTimeout = false) {
@@ -390,7 +407,7 @@
         if (data.type === 'launch' && isHost) { const { stoneId, vx, vy } = data; stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s); broadcastState(); return; }
         if (data.type === 'start' && !isHost) { startGame(); return; }
         if (data.type === 'reset') { resetGame(); return; }
-        if (data.type === 'rematch') { resetGame(); return; }
+        if (data.type === 'rematch') { startGame(); return; }
       });
       conn.on('close', () => { conn = null; playersConnected = 1; updateHud(); });
       conn.on('error', () => { onlineStatusText.textContent = '연결 오류'; });
@@ -423,7 +440,20 @@
       makePath(outer); ctx.strokeStyle = '#d89a60'; ctx.lineWidth = 14; ctx.stroke(); makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#6b3418'; ctx.lineWidth = 10; ctx.stroke();
       ctx.save(); makePath(inner); ctx.clip();
       const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220); shine.addColorStop(0, 'rgba(255,255,255,0.25)'); shine.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#111827'; ctx.lineWidth = 8; ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.66, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.3, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
+      ctx.fillStyle = 'rgba(251,191,36,0.22)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(59,130,246,0.24)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(239,68,68,0.30)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(17,24,39,0.95)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
+      ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
+      ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
+      ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
       if (drag) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); }
       for (const s of stones) { if (s.out) continue; ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill(); ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke(); ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill(); }
       for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } ctx.globalAlpha = 1; ctx.restore();
@@ -446,7 +476,16 @@
     copyInviteBtn.addEventListener('click', copyInviteLink); shareInviteBtn.addEventListener('click', shareInviteLink); leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
     startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
     resetBtn.addEventListener('click', () => { resetGame(); if (conn) sendMessage({ type: 'reset' }); });
-    rematchBtn.addEventListener('click', () => { hideOverlay(); resetGame(); if (conn) sendMessage({ type: 'rematch' }); });
+    rematchBtn.addEventListener('click', () => {
+      hideOverlay();
+      if (conn) {
+        if (!isHost) return;
+        startGame();
+        sendMessage({ type: 'rematch' });
+        return;
+      }
+      startGame();
+    });
     closeOverlayBtn.addEventListener('click', hideOverlay);
     timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
     function initFromQuery() { const room = new URLSearchParams(window.location.search).get('room'); if (room) joinCodeInput.value = room.toUpperCase(); }
