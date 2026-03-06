@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mini Curling Mobile Web Online</title>
+  <title>Mini Curling Mobile Web Online v2</title>
   <style>
     :root {
       --bg: #020617;
@@ -13,103 +13,47 @@
       --muted: #cbd5e1;
       --blue: #2563eb;
       --orange: #f59e0b;
-      --wood-1: #b55d27;
-      --wood-2: #93461c;
-      --wood-3: #5b2c14;
-      --accent: #38bdf8;
-      --good: #22c55e;
-      --warn: #f59e0b;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
     body { min-height: 100svh; }
     .app { max-width: 980px; margin: 0 auto; padding: 14px; }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      padding: 14px;
-      box-shadow: 0 18px 48px rgba(0,0,0,0.28);
-      backdrop-filter: blur(12px);
-    }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 14px; box-shadow: 0 18px 48px rgba(0,0,0,0.28); }
     h1 { margin: 0 0 6px; font-size: 24px; }
     .sub { color: var(--muted); font-size: 14px; line-height: 1.5; }
-    .toolbar, .stats, .rules, .online-grid, .bottom-grid { display: grid; gap: 10px; }
-    .toolbar { margin-top: 14px; grid-template-columns: 1fr 1fr; }
+    .online-grid, .stats, .bottom-grid, .rules { display: grid; gap: 10px; }
     .online-grid, .bottom-grid { grid-template-columns: 1.1fr .9fr; margin-top: 12px; }
     .stats { grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
     .card { background: #020617; border: 1px solid var(--line); border-radius: 18px; padding: 12px; }
     .label { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
     .value { font-size: 20px; font-weight: bold; }
     .small { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    button, select, input {
-      width: 100%; height: 48px; border-radius: 16px; border: 1px solid #334155;
-      background: #0f172a; color: white; font-size: 16px; font-weight: 700; padding: 0 14px;
-    }
+    .row { display:flex; gap:10px; align-items:center; }
+    button, select, input { width: 100%; height: 48px; border-radius: 16px; border: 1px solid #334155; background: #0f172a; color: white; font-size: 16px; font-weight: 700; padding: 0 14px; }
     button.primary { background: #2563eb; border-color: #2563eb; }
     button.secondary { background: #0f172a; }
-    button.ghost { background: #111827; }
     button.good { background: #166534; border-color: #166534; }
     button.warn { background: #92400e; border-color: #92400e; }
     button:disabled, select:disabled, input:disabled { opacity: .55; }
-    .board-wrap {
-      position: relative;
-      margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217, 154, 96, 0.28);
-      box-shadow: inset 0 0 18px rgba(0,0,0,.25);
-      background: #3c1e12;
-      touch-action: none;
-    }
-    canvas { display: block; width: 100%; height: auto; }
-    .rules { margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.6; }
-    .row { display:flex; gap:10px; align-items:center; }
-    .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px;
-      background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted);
-    }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px; background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted); }
     .status-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .link-box {
-      height: auto; min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151;
-      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5;
-    }
-    .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
-    .leader-row {
-      display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center;
-      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
-    }
-    .rank-badge {
-      width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; background: #172033; color: white;
-    }
-    .overlay {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55));
-      opacity: 0; pointer-events: none; transition: opacity .25s ease;
-    }
+    .link-box { min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151; font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5; }
+    .board-wrap { position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28); box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none; }
+    canvas { display: block; width: 100%; height: auto; }
+    .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
+    .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55)); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
     .overlay.show { opacity: 1; }
-    .overlay-card {
-      min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px;
-      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35);
-      transform: translateY(12px) scale(.98); transition: transform .25s ease;
-    }
-    .overlay.show .overlay-card { transform: translateY(0) scale(1); }
+    .overlay-card { min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px; padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
     .overlay-title { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
-    .power-wrap {
-      position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden;
-    }
-    .power-fill {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
-      background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%);
-      transition: height .05s linear;
-    }
-    .aim-badge {
-      position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0;
-    }
+    .power-wrap { position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden; }
+    .power-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%); transition: height .05s linear; }
+    .aim-badge { position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0; }
+    .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
+    .leader-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041; }
+    .rank-badge { width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #172033; color: white; }
     @media (max-width: 760px) {
-      .toolbar, .online-grid, .bottom-grid, .stats { grid-template-columns: 1fr; }
+      .online-grid, .bottom-grid, .stats { grid-template-columns: 1fr; }
       h1 { font-size: 22px; }
       .value { font-size: 18px; }
     }
@@ -119,14 +63,14 @@
 <body>
   <div class="app">
     <div class="panel">
-      <h1>Mini Curling Mobile Web Online</h1>
-      <div class="sub">방 만들기, 초대 링크, 온라인 2인 대전, 파워 게이지, 조준 가이드, 충돌 파티클, 승리 화면, 랭킹 저장까지 한 번에 들어간 버전입니다.</div>
+      <h1>Mini Curling Mobile Web Online v2</h1>
+      <div class="sub">턴 제한 시간 방식으로 바꾼 온라인 2인 미니 컬링입니다. 초대 링크, 파워 게이지, 조준 가이드, 파티클, 승패 사운드, 로컬 랭킹이 포함되어 있습니다.</div>
 
       <div class="online-grid">
         <div class="card">
           <div class="label">Online match</div>
           <div class="row" style="margin-bottom:10px;">
-            <input id="playerNameInput" placeholder="내 이름 (예: Sarang)" maxlength="20" />
+            <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
             <button id="saveNameBtn" class="secondary">저장</button>
           </div>
           <div class="row" style="margin-bottom:10px;">
@@ -145,10 +89,10 @@
             <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
             <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
           </div>
-          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트가 되고, 초대받은 사람은 참가자로 연결됩니다.</div>
+          <div class="small" style="margin-top:10px;">방을 만든 사람이 호스트이고 파랑 팀, 참가자가 주황 팀입니다.</div>
         </div>
         <div class="card">
-          <div class="label">Match setup</div>
+          <div class="label">Turn setup</div>
           <div class="row">
             <select id="timeSelect">
               <option value="10">10 seconds</option>
@@ -161,27 +105,15 @@
             <button id="startBtn" class="primary">Start Match</button>
             <button id="resetBtn" class="secondary">Reset</button>
           </div>
-          <div class="small" style="margin-top:10px;">방장이 턴 제한 시간을 10초 단위로 1분까지 정합니다. 전체 경기 시간이 아니라 각 플레이어가 자기 컬링을 움직여야 하는 제한 시간입니다.</div>
+          <div class="small" style="margin-top:10px;">전체 경기 시간이 아니라 각 플레이어가 자기 컬링을 움직여야 하는 턴 제한 시간입니다. 턴이 바뀔 때마다 시간이 다시 시작됩니다.</div>
         </div>
       </div>
 
       <div class="stats">
-        <div class="card">
-          <div class="label">Turn</div>
-          <div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div>
-        </div>
-        <div class="card">
-          <div class="label">Turn left</div>
-          <div class="value" id="timeText">30s</div>
-        </div>
-        <div class="card">
-          <div class="label">Score</div>
-          <div class="value" id="scoreText">0 : 0</div>
-        </div>
-        <div class="card">
-          <div class="label">Room mode</div>
-          <div class="value" id="roomModeText">LOCAL</div>
-        </div>
+        <div class="card"><div class="label">Turn</div><div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div></div>
+        <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
+        <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div></div>
+        <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">LOCAL</div></div>
       </div>
 
       <div class="board-wrap">
@@ -201,42 +133,27 @@
       </div>
 
       <div class="stats">
-        <div class="card">
-          <div class="label">Blue remaining</div>
-          <div class="value" id="blueRemain">4</div>
-        </div>
-        <div class="card">
-          <div class="label">Orange remaining</div>
-          <div class="value" id="orangeRemain">4</div>
-        </div>
-        <div class="card">
-          <div class="label">Result</div>
-          <div class="value" id="resultText">Ready</div>
-        </div>
-        <div class="card">
-          <div class="label">Players</div>
-          <div class="value" id="playersText">1 / 2</div>
-        </div>
+        <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">4</div></div>
+        <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">4</div></div>
+        <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
+        <div class="card"><div class="label">Players</div><div class="value" id="playersText">1 / 2</div></div>
       </div>
 
       <div class="bottom-grid">
         <div class="card">
           <div class="label">How to play</div>
           <div class="rules">
-            <div>• 아래 파란 돌과 위 주황 돌이 번갈아 한 개씩 움직입니다.</div>
-            <div>• 온라인에서는 방장 = 파랑, 참가자 = 주황으로 자동 배정됩니다.</div>
-            <div>• 손가락으로 끌어 점선 방향대로 발사합니다.</div>
-            <div>• 오른쪽 파워 게이지로 세기를 보고, 왼쪽 배지로 현재 조준 상태를 확인할 수 있습니다.</div>
+            <div>• 파랑과 주황이 한 번씩 번갈아 컬링 1개씩 움직입니다.</div>
+            <div>• 각 턴마다 제한 시간이 새로 시작됩니다.</div>
+            <div>• 턴 시간 안에 움직이지 못하면 그 컬링은 기권 처리됩니다.</div>
             <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
-            <div>• 돌끼리 부딪히거나 벽에 강하게 부딪히면 효과음과 파티클이 납니다.</div>
-            <div>• 게임 시작 / 승리 / 패배 / 무승부 사운드가 함께 들어 있습니다.</div>
-            <div>• 중앙 원 안에 남은 돌 1개당 10점입니다.</div>
-            <div>• 모바일이면 충돌 시 짧은 진동도 발생합니다.</div>
+            <div>• 중앙 원 안에 남은 컬링 1개당 10점입니다.</div>
+            <div>• 충돌음은 업로드한 <b>curling_sound.m4a</b> 파일을 사용합니다. GitHub에도 같은 파일을 같이 올려야 합니다.</div>
           </div>
         </div>
         <div class="card">
           <div class="label">Leaderboard (이 기기 저장)</div>
-          <div class="small">이 랭킹은 현재 브라우저 localStorage에 저장됩니다. 온라인 글로벌 랭킹 서버는 아직 붙이지 않았습니다.</div>
+          <div class="small">이 랭킹은 현재 브라우저 localStorage에 저장됩니다.</div>
           <div class="leaderboard" id="leaderboard"></div>
         </div>
       </div>
@@ -244,20 +161,10 @@
   </div>
 
   <script>
-    const BOARD_W = 720;
-    const BOARD_H = 960;
-    const CENTER_X = BOARD_W / 2;
-    const CENTER_Y = BOARD_H / 2;
-    const TABLE_MARGIN = 46;
-    const OCTAGON_INSET = 118;
-    const STONE_R = 24;
-    const SCORING_R = 88;
-    const MAX_POWER = 6.2;
-    const FRICTION = 0.987;
-    const MIN_SPEED = 0.05;
-    const BOUNCE = 0.92;
-    const AUDIO_COOLDOWN_MS = 70;
-    const PEER_PREFIX = 'mini-curling-room-';
+    const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
+    const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
+    const MAX_POWER = 6.2, FRICTION = 0.987, MIN_SPEED = 0.05, BOUNCE = 0.92;
+    const AUDIO_COOLDOWN_MS = 70, PEER_PREFIX = 'mini-curling-room-', COLLISION_SOUND_URL = 'curling_sound.m4a';
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const canvas = document.getElementById('board');
@@ -295,799 +202,256 @@
     const overlayTitle = document.getElementById('overlayTitle');
     const overlaySub = document.getElementById('overlaySub');
 
-    let phase = 'lobby';
-    let turn = 'blue';
-    let timeLeft = 30;
-    let timerId = null;
-    let drag = null;
-    let particles = [];
-    let audioCtx = null;
-    let audioReady = false;
-    let lastSoundAt = 0;
-    let suppressBroadcast = false;
-    let peer = null;
-    let conn = null;
-    let isHost = false;
-    let myTeam = 'blue';
-    let roomCode = '';
-    let playersConnected = 1;
-    let lastRemoteStateAt = 0;
+    let phase = 'lobby', turn = 'blue', timeLeft = 20, timerId = null, drag = null, particles = [];
+    let audioCtx = null, audioReady = false, lastSoundAt = 0, collisionAudio = null;
+    let suppressBroadcast = false, peer = null, conn = null, isHost = false, myTeam = 'blue', roomCode = '', playersConnected = 1;
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     playerNameInput.value = playerName;
 
     function ensureAudio() {
       if (audioCtx) return audioCtx;
-      if (!window.AudioContext && !window.webkitAudioContext) return null;
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
       audioCtx = new AudioCtx();
       audioReady = true;
       return audioCtx;
     }
-
+    function setupCollisionAudio() {
+      collisionAudio = new Audio(COLLISION_SOUND_URL);
+      collisionAudio.preload = 'auto';
+      collisionAudio.playsInline = true;
+    }
     function unlockAudio() {
       const ctx = ensureAudio();
-      if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (collisionAudio) {
+        collisionAudio.muted = true;
+        collisionAudio.play().then(() => { collisionAudio.pause(); collisionAudio.currentTime = 0; collisionAudio.muted = false; }).catch(() => {});
+      }
     }
-
     function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
-      const ctx = ensureAudio();
-      if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, startAt);
+      const ctx = ensureAudio(); if (!ctx) return;
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.type = type; osc.frequency.setValueAtTime(freq, startAt);
       gain.gain.setValueAtTime(0.0001, startAt);
       gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(startAt);
-      osc.stop(startAt + duration + 0.02);
+      osc.connect(gain); gain.connect(ctx.destination); osc.start(startAt); osc.stop(startAt + duration + 0.02);
     }
-
-    function noiseHit(startAt, duration, gainValue = 0.12) {
-      const ctx = ensureAudio();
-      if (!ctx) return;
-      const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-      const source = ctx.createBufferSource();
-      const filter = ctx.createBiquadFilter();
-      const gain = ctx.createGain();
-      filter.type = 'bandpass';
-      filter.frequency.value = 900;
-      filter.Q.value = 0.8;
-      gain.gain.setValueAtTime(gainValue, startAt);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-      source.buffer = buffer;
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      source.start(startAt);
-      source.stop(startAt + duration);
-    }
-
     function playCollisionSound(intensity = 1) {
-      const ctx = ensureAudio();
       const now = performance.now();
-      if (!ctx || !audioReady) return;
+      if (!collisionAudio) return;
       if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
       lastSoundAt = now;
-      const t = ctx.currentTime;
-      const volume = Math.max(0.05, Math.min(0.22, intensity * 0.2));
-      noiseHit(t, 0.06, volume);
-      tone(420 + intensity * 120, t, 0.05, 'triangle', volume * 0.9);
-      tone(260 + intensity * 80, t + 0.01, 0.07, 'sine', volume * 0.55);
+      try {
+        const sfx = collisionAudio.cloneNode();
+        sfx.volume = Math.max(0.15, Math.min(0.9, intensity * 0.85));
+        sfx.currentTime = 0;
+        sfx.play().catch(() => {});
+      } catch {}
     }
+    function playStartSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.12,'triangle',0.12); tone(523.25,t+0.12,0.12,'triangle',0.14); tone(659.25,t+0.24,0.18,'triangle',0.16); }
+    function playWinSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(523.25,t,0.12,'triangle',0.12); tone(659.25,t+0.11,0.12,'triangle',0.13); tone(783.99,t+0.22,0.14,'triangle',0.14); tone(1046.5,t+0.34,0.28,'triangle',0.16); }
+    function playDrawSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.14,'sine',0.1); tone(349.23,t+0.16,0.14,'sine',0.095); tone(392,t+0.34,0.2,'sine',0.09); }
+    function playLoseSound() { const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392,t,0.12,'triangle',0.11); tone(329.63,t+0.13,0.14,'triangle',0.1); tone(261.63,t+0.28,0.2,'sawtooth',0.09); tone(196,t+0.5,0.28,'sine',0.08); }
+    function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-    function playStartSound() {
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.12, 'triangle', 0.12);
-      tone(523.25, t + 0.12, 0.12, 'triangle', 0.14);
-      tone(659.25, t + 0.24, 0.18, 'triangle', 0.16);
-    }
-
-    function playWinSound() {
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(523.25, t, 0.12, 'triangle', 0.12);
-      tone(659.25, t + 0.11, 0.12, 'triangle', 0.13);
-      tone(783.99, t + 0.22, 0.14, 'triangle', 0.14);
-      tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16);
-    }
-
-    function playDrawSound() {
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.14, 'sine', 0.1);
-      tone(349.23, t + 0.16, 0.14, 'sine', 0.095);
-      tone(392, t + 0.34, 0.2, 'sine', 0.09);
-    }
-
-    function playLoseSound() {
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.12, 'triangle', 0.11);
-      tone(329.63, t + 0.13, 0.14, 'triangle', 0.1);
-      tone(261.63, t + 0.28, 0.2, 'sawtooth', 0.09);
-      tone(196, t + 0.5, 0.28, 'sine', 0.08);
-    }
-
-    function vibrate(ms = 18) {
-      if (navigator.vibrate) navigator.vibrate(ms);
-    }
-
-    function randomCode() {
-      return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
-
-    function octagonPoints(inset = OCTAGON_INSET) {
-      return [
-        { x: inset, y: TABLE_MARGIN },
-        { x: BOARD_W - inset, y: TABLE_MARGIN },
-        { x: BOARD_W - TABLE_MARGIN, y: inset },
-        { x: BOARD_W - TABLE_MARGIN, y: BOARD_H - inset },
-        { x: BOARD_W - inset, y: BOARD_H - TABLE_MARGIN },
-        { x: inset, y: BOARD_H - TABLE_MARGIN },
-        { x: TABLE_MARGIN, y: BOARD_H - inset },
-        { x: TABLE_MARGIN, y: inset },
-      ];
-    }
-
+    function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
+    function octagonPoints(inset = OCTAGON_INSET) { return [{x:inset,y:TABLE_MARGIN},{x:BOARD_W-inset,y:TABLE_MARGIN},{x:BOARD_W-TABLE_MARGIN,y:inset},{x:BOARD_W-TABLE_MARGIN,y:BOARD_H-inset},{x:BOARD_W-inset,y:BOARD_H-TABLE_MARGIN},{x:inset,y:BOARD_H-TABLE_MARGIN},{x:TABLE_MARGIN,y:BOARD_H-inset},{x:TABLE_MARGIN,y:inset}]; }
     function makeInitialStones() {
-      const laneYTop = TABLE_MARGIN + 92;
-      const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
-      const startXs = [240, 320, 400, 480];
+      const laneYTop = TABLE_MARGIN + 92, laneYBottom = BOARD_H - TABLE_MARGIN - 92, startXs = [240, 320, 400, 480];
       return [
-        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false })),
-        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false })),
+        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false })),
+        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false })),
       ];
     }
-
-    let stones = makeInitialStones();
-    let score = { blue: 0, orange: 0 };
-
-    function inCircle(x, y) {
-      return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R;
-    }
-
-    function countRemaining(team) {
-      return stones.filter(s => s.team === team && !s.launched).length;
-    }
-
-    function allStopped() {
-      return stones.every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED);
-    }
-
-    function computeScores() {
-      const blueIn = stones.filter(s => s.team === 'blue' && inCircle(s.x, s.y)).length;
-      const orangeIn = stones.filter(s => s.team === 'orange' && inCircle(s.x, s.y)).length;
-      score = { blue: blueIn * 10, orange: orangeIn * 10 };
-    }
-
-    function activateNextStone(team) {
-      let activated = false;
-      stones = stones.map(s => {
-        if (!activated && s.team === team && !s.launched) {
-          activated = true;
-          return { ...s, active: true };
-        }
-        return { ...s, active: false };
-      });
-    }
-
-    function getNextTurn() {
-      return turn === 'blue' ? 'orange' : 'blue';
-    }
-
-    function canControlTurn() {
-      return !conn || myTeam === turn;
-    }
-
-    function makeInviteLink() {
-      if (!roomCode) return '';
-      const url = new URL(window.location.href);
-      url.searchParams.set('room', roomCode);
-      return url.toString();
-    }
-
-    function spawnParticles(x, y, color, intensity = 1) {
-      const count = 8 + Math.floor(intensity * 10);
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 1 + Math.random() * (2.5 + intensity * 2.2);
-        particles.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 18 + Math.random() * 16,
-          maxLife: 34,
-          size: 2 + Math.random() * 4,
-          color
-        });
-      }
-    }
-
-    function updateParticles() {
-      particles = particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.96;
-        p.vy *= 0.96;
-        p.life -= 1;
-        return p.life > 0;
-      });
-    }
-
+    let stones = makeInitialStones(), score = { blue: 0, orange: 0 };
+    function inCircle(x, y) { return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R; }
+    function countRemaining(team) { return stones.filter(s => s.team === team && !s.launched && !s.out).length; }
+    function allStopped() { return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED); }
+    function computeScores() { score = { blue: stones.filter(s => s.team === 'blue' && !s.out && inCircle(s.x, s.y)).length * 10, orange: stones.filter(s => s.team === 'orange' && !s.out && inCircle(s.x, s.y)).length * 10 }; }
+    function activateNextStone(team) { let activated = false; stones = stones.map(s => (!activated && s.team === team && !s.launched && !s.out) ? ((activated = true), { ...s, active: true }) : { ...s, active: false }); }
+    function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
+    function canControlTurn() { return phase === 'playing' && (!conn || myTeam === turn); }
+    function makeInviteLink() { if (!roomCode) return ''; const url = new URL(window.location.href); url.searchParams.set('room', roomCode); return url.toString(); }
+    function spawnParticles(x, y, color, intensity = 1) { const count = 8 + Math.floor(intensity * 10); for (let i = 0; i < count; i++) { const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * (2.5 + intensity * 2.2); particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 18 + Math.random() * 16, maxLife: 34, size: 2 + Math.random() * 4, color }); } }
+    function updateParticles() { particles = particles.filter(p => (p.x += p.vx, p.y += p.vy, p.vx *= 0.96, p.vy *= 0.96, p.life -= 1, p.life > 0)); }
     function clampInTable(s) {
       const points = octagonPoints();
       for (let i = 0; i < points.length; i++) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        const ex = b.x - a.x;
-        const ey = b.y - a.y;
-        const len = Math.hypot(ex, ey);
-        const tx = ex / len;
-        const ty = ey / len;
-        const nx = -ty;
-        const ny = tx;
+        const a = points[i], b = points[(i + 1) % points.length], ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey), tx = ex / len, ty = ey / len, nx = -ty, ny = tx;
         const dist = (s.x - a.x) * nx + (s.y - a.y) * ny;
         if (dist < STONE_R) {
-          const push = STONE_R - dist;
-          s.x += nx * push;
-          s.y += ny * push;
+          const push = STONE_R - dist; s.x += nx * push; s.y += ny * push;
           const vn = s.vx * nx + s.vy * ny;
-          if (vn < 0) {
-            const impact = Math.min(1, Math.abs(vn) / 4.5);
-            playCollisionSound(impact * 0.8);
-            vibrate(10);
-            spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
-            s.vx = s.vx - (1 + BOUNCE) * vn * nx;
-            s.vy = s.vy - (1 + BOUNCE) * vn * ny;
-          }
+          if (vn < 0) { const impact = Math.min(1, Math.abs(vn) / 4.5); playCollisionSound(impact * 0.8); vibrate(10); spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact); s.vx = s.vx - (1 + BOUNCE) * vn * nx; s.vy = s.vy - (1 + BOUNCE) * vn * ny; }
         }
       }
       return s;
     }
-
     function resolveStoneCollisions() {
-      for (let i = 0; i < stones.length; i++) {
-        for (let j = i + 1; j < stones.length; j++) {
-          const a = stones[i];
-          const b = stones[j];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.hypot(dx, dy);
-          const minDist = STONE_R * 2;
-          if (dist === 0 || dist >= minDist) continue;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const overlap = minDist - dist;
-          a.x -= nx * overlap * 0.5;
-          a.y -= ny * overlap * 0.5;
-          b.x += nx * overlap * 0.5;
-          b.y += ny * overlap * 0.5;
-          const dvx = a.vx - b.vx;
-          const dvy = a.vy - b.vy;
-          const relVel = dvx * nx + dvy * ny;
-          if (relVel > 0) continue;
-          const impulse = -relVel;
-          const impact = Math.min(1, Math.abs(impulse) / 5.5);
-          playCollisionSound(impact);
-          vibrate(14);
-          spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
-          a.vx += -impulse * nx;
-          a.vy += -impulse * ny;
-          b.vx += impulse * nx;
-          b.vy += impulse * ny;
-        }
+      for (let i = 0; i < stones.length; i++) for (let j = i + 1; j < stones.length; j++) {
+        const a = stones[i], b = stones[j];
+        if (a.out || b.out) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), minDist = STONE_R * 2;
+        if (dist === 0 || dist >= minDist) continue;
+        const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
+        a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5; b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
+        const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
+        if (relVel > 0) continue;
+        const impulse = -relVel, impact = Math.min(1, Math.abs(impulse) / 5.5);
+        playCollisionSound(impact); vibrate(14); spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
+        a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
       }
     }
 
-    function loadLeaderboard() {
-      try {
-        return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]');
-      } catch {
-        return [];
-      }
+    function loadLeaderboard() { try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); } catch { return []; } }
+    function saveLeaderboard(items) { localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10))); }
+    function escapeHtml(text) { return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function renderLeaderboard() {
+      const items = loadLeaderboard();
+      if (!items.length) { leaderboardEl.innerHTML = '<div class="small">아직 기록이 없습니다. 한 판 해보세요.</div>'; return; }
+      leaderboardEl.innerHTML = items.map((item, idx) => `<div class="leader-row"><div class="rank-badge">${idx + 1}</div><div><div style="font-weight:800;">${escapeHtml(item.name)}</div><div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div></div><div style="font-weight:800; color:#f8fafc;">${item.points} pt</div></div>`).join('');
     }
-
-    function saveLeaderboard(items) {
-      localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10)));
-    }
-
     function recordLeaderboard(result) {
       const items = loadLeaderboard();
       const existing = items.find(i => i.name === playerName);
-      if (existing) {
-        existing.wins += result === 'win' ? 1 : 0;
-        existing.losses += result === 'lose' ? 1 : 0;
-        existing.draws += result === 'draw' ? 1 : 0;
-        existing.points += score[myTeam];
-      } else {
-        items.push({
-          name: playerName,
-          wins: result === 'win' ? 1 : 0,
-          losses: result === 'lose' ? 1 : 0,
-          draws: result === 'draw' ? 1 : 0,
-          points: score[myTeam]
-        });
-      }
-      items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points);
-      saveLeaderboard(items);
-      renderLeaderboard();
+      if (existing) { existing.wins += result === 'win'; existing.losses += result === 'lose'; existing.draws += result === 'draw'; existing.points += score[myTeam]; }
+      else items.push({ name: playerName, wins: result === 'win' ? 1 : 0, losses: result === 'lose' ? 1 : 0, draws: result === 'draw' ? 1 : 0, points: score[myTeam] });
+      items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points); saveLeaderboard(items); renderLeaderboard();
     }
-
-    function renderLeaderboard() {
-      const items = loadLeaderboard();
-      if (!items.length) {
-        leaderboardEl.innerHTML = '<div class="small">아직 기록이 없습니다. 한 판 해보세요.</div>';
-        return;
-      }
-      leaderboardEl.innerHTML = items.map((item, idx) => `
-        <div class="leader-row">
-          <div class="rank-badge">${idx + 1}</div>
-          <div>
-            <div style="font-weight:800;">${escapeHtml(item.name)}</div>
-            <div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div>
-          </div>
-          <div style="font-weight:800; color:#f8fafc;">${item.points} pt</div>
-        </div>
-      `).join('');
-    }
-
-    function escapeHtml(text) {
-      return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-    }
-
-    function showOverlay(title, sub) {
-      overlayTitle.textContent = title;
-      overlaySub.textContent = sub;
-      resultOverlay.classList.add('show');
-    }
-
-    function hideOverlay() {
-      resultOverlay.classList.remove('show');
-    }
+    function showOverlay(title, sub) { overlayTitle.textContent = title; overlaySub.textContent = sub; resultOverlay.classList.add('show'); }
+    function hideOverlay() { resultOverlay.classList.remove('show'); }
+    function resetTurnClock() { timeLeft = Number(timeSelect.value); }
 
     function endGame() {
-      computeScores();
-      phase = 'ended';
-      let finalText = 'Draw';
-      let finalSub = `BLUE ${score.blue} : ORANGE ${score.orange}`;
-      if (score.blue === score.orange) {
-        resultText.textContent = 'Draw';
-        playDrawSound();
-        recordLeaderboard('draw');
-        finalText = '무승부';
-      } else if (score.blue > score.orange) {
-        resultText.textContent = 'Blue Team Wins';
-        finalText = 'Blue Wins';
-        if (myTeam === 'blue') {
-          playWinSound();
-          recordLeaderboard('win');
-        } else {
-          playLoseSound();
-          recordLeaderboard('lose');
-        }
-      } else {
-        resultText.textContent = 'Orange Team Wins';
-        finalText = 'Orange Wins';
-        if (myTeam === 'orange') {
-          playWinSound();
-          recordLeaderboard('win');
-        } else {
-          playLoseSound();
-          recordLeaderboard('lose');
-        }
+      computeScores(); phase = 'ended';
+      let finalText = 'Draw', finalSub = `BLUE ${score.blue} : ORANGE ${score.orange}`;
+      if (score.blue === score.orange) { resultText.textContent = 'Draw'; playDrawSound(); recordLeaderboard('draw'); finalText = '무승부'; }
+      else if (score.blue > score.orange) { resultText.textContent = 'Blue Team Wins'; finalText = 'Blue Wins'; if (myTeam === 'blue') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
+      else { resultText.textContent = 'Orange Team Wins'; finalText = 'Orange Wins'; if (myTeam === 'orange') { playWinSound(); recordLeaderboard('win'); } else { playLoseSound(); recordLeaderboard('lose'); } }
+      showOverlay(finalText, finalSub + ' · Rematch로 다시 시작할 수 있습니다.'); updateHud(); broadcastState();
+    }
+
+    function advanceTurn(forcedTimeout = false) {
+      if (forcedTimeout) {
+        const active = stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
+        if (active) stones = stones.map(s => s.id === active.id ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 } : s);
       }
-      showOverlay(finalText, finalSub + ' · Rematch로 다시 시작할 수 있습니다.');
-      updateHud();
-      broadcastState();
+      const nextPreferred = getNextTurn();
+      if (countRemaining(nextPreferred) > 0) turn = nextPreferred;
+      else if (countRemaining(turn) > 0) {}
+      else if (countRemaining('blue') > 0) turn = 'blue';
+      else if (countRemaining('orange') > 0) turn = 'orange';
+      if (countRemaining('blue') === 0 && countRemaining('orange') === 0) { if (allStopped()) endGame(); return; }
+      activateNextStone(turn); resetTurnClock(); updateHud(); broadcastState();
     }
 
     function resetGame() {
-      phase = 'lobby';
-      turn = 'blue';
-      timeLeft = Number(timeSelect.value);
-      stones = makeInitialStones();
-      score = { blue: 0, orange: 0 };
-      particles = [];
-      resultText.textContent = 'Ready';
-      if (timerId) clearInterval(timerId);
-      timerId = null;
-      powerFill.style.height = '0%';
-      aimBadge.textContent = '당겨서 조준';
-      hideOverlay();
-      updateHud();
-      draw();
-      broadcastState();
+      phase = 'lobby'; turn = 'blue'; resetTurnClock(); stones = makeInitialStones(); score = { blue: 0, orange: 0 }; particles = [];
+      resultText.textContent = 'Ready'; if (timerId) clearInterval(timerId); timerId = null; powerFill.style.height = '0%'; aimBadge.textContent = '당겨서 조준'; hideOverlay(); updateHud(); draw(); broadcastState();
     }
 
     function startGame() {
-      resetGame();
-      phase = 'playing';
-      resultText.textContent = 'Playing';
-      playStartSound();
+      resetGame(); phase = 'playing'; resultText.textContent = 'Playing'; resetTurnClock(); playStartSound();
+      if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
         if (phase !== 'playing') return;
         timeLeft = Math.max(0, timeLeft - 1);
-        if (timeLeft === 0) endGame();
-        updateHud();
-        broadcastState({ timerOnly: true });
+        if (timeLeft === 0) { if (!conn || isHost) advanceTurn(true); return; }
+        updateHud(); broadcastState({ timerOnly: true });
       }, 1000);
-      updateHud();
-      broadcastState();
+      updateHud(); broadcastState();
     }
 
     function updateHud() {
-      computeScores();
-      turnDot.style.background = COLORS[turn];
-      turnText.textContent = turn.toUpperCase();
-      timeText.textContent = `${timeLeft}s`;
-      scoreText.textContent = `${score.blue} : ${score.orange}`;
-      blueRemain.textContent = countRemaining('blue');
-      orangeRemain.textContent = countRemaining('orange');
-      playersText.textContent = `${playersConnected} / 2`;
-      onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드');
-      myTeamText.textContent = myTeam.toUpperCase();
-      roomCodeText.textContent = roomCode || '-';
-      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'LOCAL');
-      startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
-      timeSelect.disabled = conn ? !isHost : false;
-      inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
+      computeScores(); turnDot.style.background = COLORS[turn]; turnText.textContent = turn.toUpperCase(); timeText.textContent = `${timeLeft}s`; scoreText.textContent = `${score.blue} : ${score.orange}`;
+      blueRemain.textContent = countRemaining('blue'); orangeRemain.textContent = countRemaining('orange'); playersText.textContent = `${playersConnected} / 2`;
+      onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드'); myTeamText.textContent = myTeam.toUpperCase(); roomCodeText.textContent = roomCode || '-';
+      roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'LOCAL'); startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false; timeSelect.disabled = conn ? !isHost : false; inviteLinkBox.textContent = roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.';
+      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
     }
 
-    function getCanvasPos(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height),
-      };
-    }
-
-    function activeStoneForTurn() {
-      return stones.find(s => s.active && s.team === turn && !s.launched);
-    }
-
-    function currentStatePayload(extra = {}) {
-      return {
-        type: 'state',
-        roomCode,
-        phase,
-        turn,
-        timeLeft,
-        hostTime: Number(timeSelect.value),
-        stones,
-        score,
-        playersConnected,
-        sentAt: Date.now(),
-        ...extra
-      };
-    }
-
-    function applyRemoteState(payload) {
-      suppressBroadcast = true;
-      if (timerId) {
-        clearInterval(timerId);
-        timerId = null;
-      }
-      phase = payload.phase;
-      turn = payload.turn;
-      timeLeft = payload.timeLeft;
-      if (payload.hostTime) timeSelect.value = String(payload.hostTime);
-      if (payload.stones) stones = payload.stones;
-      if (payload.score) score = payload.score;
-      playersConnected = payload.playersConnected || playersConnected;
-      lastRemoteStateAt = Date.now();
-      if (phase === 'playing' && !timerId) {
-        timerId = setInterval(() => {
-          if (phase !== 'playing' || isHost) return;
-          const lag = Math.floor((Date.now() - lastRemoteStateAt) / 1000);
-          timeLeft = Math.max(0, payload.timeLeft - lag);
-          updateHud();
-        }, 250);
-      }
-      updateHud();
-      if (phase === 'ended') hideOverlay();
-      suppressBroadcast = false;
-    }
-
-    function sendMessage(data) {
-      if (conn && conn.open) conn.send(data);
-    }
-
-    function broadcastState(extra = {}) {
-      if (suppressBroadcast || !isHost || !conn || !conn.open) return;
-      sendMessage(currentStatePayload(extra));
-    }
+    function getCanvasPos(clientX, clientY) { const rect = canvas.getBoundingClientRect(); return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) }; }
+    function activeStoneForTurn() { return stones.find(s => s.active && s.team === turn && !s.launched && !s.out); }
+    function currentStatePayload(extra = {}) { return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, ...extra }; }
+    function applyRemoteState(payload) { suppressBroadcast = true; phase = payload.phase; turn = payload.turn; timeLeft = payload.timeLeft; if (payload.hostTime) timeSelect.value = String(payload.hostTime); if (payload.stones) stones = payload.stones; if (payload.score) score = payload.score; playersConnected = payload.playersConnected || playersConnected; updateHud(); suppressBroadcast = false; }
+    function sendMessage(data) { if (conn && conn.open) conn.send(data); }
+    function broadcastState(extra = {}) { if (suppressBroadcast || !isHost || !conn || !conn.open) return; sendMessage(currentStatePayload(extra)); }
 
     function setConnectionHandlers(connection) {
       conn = connection;
-      conn.on('open', () => {
-        playersConnected = 2;
-        updateHud();
-        sendMessage({ type: 'hello', playerName, team: myTeam });
-        if (isHost) broadcastState();
-      });
+      conn.on('open', () => { playersConnected = 2; updateHud(); sendMessage({ type: 'hello', playerName, team: myTeam }); if (isHost) broadcastState(); });
       conn.on('data', (data) => {
         if (!data || typeof data !== 'object') return;
-        if (data.type === 'hello') {
-          playersConnected = 2;
-          updateHud();
-          return;
-        }
-        if (data.type === 'request_state' && isHost) {
-          broadcastState();
-          return;
-        }
-        if (data.type === 'state' && !isHost) {
-          applyRemoteState(data);
-          return;
-        }
-        if (data.type === 'launch' && isHost) {
-          const { stoneId, vx, vy } = data;
-          stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
-          broadcastState();
-          return;
-        }
-        if (data.type === 'start' && !isHost) {
-          startGame();
-          return;
-        }
-        if (data.type === 'reset') {
-          resetGame();
-          return;
-        }
-        if (data.type === 'rematch') {
-          resetGame();
-          return;
-        }
+        if (data.type === 'hello') { playersConnected = 2; updateHud(); return; }
+        if (data.type === 'request_state' && isHost) { broadcastState(); return; }
+        if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
+        if (data.type === 'launch' && isHost) { const { stoneId, vx, vy } = data; stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s); broadcastState(); return; }
+        if (data.type === 'start' && !isHost) { startGame(); return; }
+        if (data.type === 'reset') { resetGame(); return; }
+        if (data.type === 'rematch') { resetGame(); return; }
       });
-      conn.on('close', () => {
-        conn = null;
-        playersConnected = 1;
-        updateHud();
-      });
-      conn.on('error', () => {
-        onlineStatusText.textContent = '연결 오류';
-      });
+      conn.on('close', () => { conn = null; playersConnected = 1; updateHud(); });
+      conn.on('error', () => { onlineStatusText.textContent = '연결 오류'; });
     }
 
-    function teardownRoom() {
-      if (conn) { try { conn.close(); } catch {} }
-      if (peer) { try { peer.destroy(); } catch {} }
-      conn = null;
-      peer = null;
-      isHost = false;
-      myTeam = 'blue';
-      roomCode = '';
-      playersConnected = 1;
-      history.replaceState({}, '', window.location.pathname);
-      updateHud();
-    }
-
+    function teardownRoom() { if (conn) try { conn.close(); } catch {} if (peer) try { peer.destroy(); } catch {} conn = null; peer = null; isHost = false; myTeam = 'blue'; roomCode = ''; playersConnected = 1; history.replaceState({}, '', window.location.pathname); updateHud(); }
     function createRoom() {
-      unlockAudio();
-      teardownRoom();
-      roomCode = randomCode();
-      isHost = true;
-      myTeam = 'blue';
-      peer = new Peer(PEER_PREFIX + roomCode);
-      peer.on('open', () => {
-        playersConnected = 1;
-        updateHud();
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', roomCode);
-        history.replaceState({}, '', url);
-      });
-      peer.on('connection', (connection) => {
-        if (conn && conn.open) { connection.close(); return; }
-        setConnectionHandlers(connection);
-      });
-      peer.on('error', (err) => {
-        onlineStatusText.textContent = '방 생성 실패';
-        console.error(err);
-      });
-      updateHud();
+      unlockAudio(); teardownRoom(); roomCode = randomCode(); isHost = true; myTeam = 'blue'; peer = new Peer(PEER_PREFIX + roomCode);
+      peer.on('open', () => { playersConnected = 1; updateHud(); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); });
+      peer.on('connection', (connection) => { if (conn && conn.open) { connection.close(); return; } setConnectionHandlers(connection); });
+      peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; }); updateHud();
     }
-
     function joinRoom(code) {
-      unlockAudio();
-      teardownRoom();
-      roomCode = code.toUpperCase();
-      isHost = false;
-      myTeam = 'orange';
-      peer = new Peer();
-      peer.on('open', () => {
-        const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
-        setConnectionHandlers(connection);
-        connection.on('open', () => {
-          sendMessage({ type: 'request_state', playerName });
-        });
-      });
-      peer.on('error', (err) => {
-        onlineStatusText.textContent = '참가 실패';
-        console.error(err);
-      });
-      const url = new URL(window.location.href);
-      url.searchParams.set('room', roomCode);
-      history.replaceState({}, '', url);
-      updateHud();
+      unlockAudio(); teardownRoom(); roomCode = code.toUpperCase(); isHost = false; myTeam = 'orange'; peer = new Peer();
+      peer.on('open', () => { const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true }); setConnectionHandlers(connection); connection.on('open', () => sendMessage({ type: 'request_state', playerName })); });
+      peer.on('error', () => { onlineStatusText.textContent = '참가 실패'; }); const url = new URL(window.location.href); url.searchParams.set('room', roomCode); history.replaceState({}, '', url); updateHud();
     }
+    function copyInviteLink() { const link = makeInviteLink(); if (!link) return; navigator.clipboard?.writeText(link).then(() => { onlineStatusText.textContent = '초대 링크 복사됨'; }).catch(() => { inviteLinkBox.textContent = link; }); }
+    function shareInviteLink() { const link = makeInviteLink(); if (!link) return; if (navigator.share) navigator.share({ title: 'Mini Curling Invite', text: '같이 미니 컬링 한 판 해요!', url: link }).catch(() => {}); else copyInviteLink(); }
+    function launchStone(stoneId, vx, vy) { stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s); if (!conn || isHost) return; sendMessage({ type: 'launch', stoneId, vx, vy }); }
 
-    function copyInviteLink() {
-      const link = makeInviteLink();
-      if (!link) return;
-      navigator.clipboard?.writeText(link).then(() => {
-        onlineStatusText.textContent = '초대 링크 복사됨';
-      }).catch(() => {
-        inviteLinkBox.textContent = link;
-      });
-    }
-
-    function shareInviteLink() {
-      const link = makeInviteLink();
-      if (!link) return;
-      if (navigator.share) {
-        navigator.share({ title: 'Mini Curling Invite', text: '같이 미니 컬링 한 판 해요!', url: link }).catch(() => {});
-      } else {
-        copyInviteLink();
-      }
-    }
-
-    function launchStone(stoneId, vx, vy) {
-      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
-      if (isHost) broadcastState();
-      else sendMessage({ type: 'launch', stoneId, vx, vy });
-    }
-
-    canvas.addEventListener('pointerdown', (e) => {
-      unlockAudio();
-      if (phase !== 'playing') return;
-      if (!canControlTurn()) return;
-      const p = getCanvasPos(e.clientX, e.clientY);
-      const stone = activeStoneForTurn();
-      if (!stone) return;
-      if (Math.hypot(p.x - stone.x, p.y - stone.y) <= STONE_R + 8) {
-        drag = { stoneId: stone.id, startX: stone.x, startY: stone.y, currentX: p.x, currentY: p.y };
-      }
-    });
-
-    canvas.addEventListener('pointermove', (e) => {
-      if (!drag) return;
-      const p = getCanvasPos(e.clientX, e.clientY);
-      drag.currentX = p.x;
-      drag.currentY = p.y;
-      const dx = drag.currentX - drag.startX;
-      const dy = drag.currentY - drag.startY;
-      const len = Math.hypot(dx, dy);
-      const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100);
-      powerFill.style.height = `${powerPct}%`;
-      aimBadge.textContent = `Power ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
-    });
-
-    function releaseDrag() {
-      if (!drag) return;
-      const dx = drag.currentX - drag.startX;
-      const dy = drag.currentY - drag.startY;
-      const len = Math.hypot(dx, dy);
-      const stoneId = drag.stoneId;
-      drag = null;
-      powerFill.style.height = '0%';
-      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
-      if (len < 8) return;
-      const power = Math.min(MAX_POWER, len / 22);
-      const vx = (dx / len) * power;
-      const vy = (dy / len) * power;
-      launchStone(stoneId, vx, vy);
-    }
-
-    canvas.addEventListener('pointerup', releaseDrag);
-    canvas.addEventListener('pointerleave', releaseDrag);
-    canvas.addEventListener('pointercancel', releaseDrag);
+    canvas.addEventListener('pointerdown', (e) => { unlockAudio(); if (phase !== 'playing' || !canControlTurn()) return; const p = getCanvasPos(e.clientX, e.clientY); const stone = activeStoneForTurn(); if (stone && Math.hypot(p.x - stone.x, p.y - stone.y) <= STONE_R + 8) drag = { stoneId: stone.id, startX: stone.x, startY: stone.y, currentX: p.x, currentY: p.y }; });
+    canvas.addEventListener('pointermove', (e) => { if (!drag) return; const p = getCanvasPos(e.clientX, e.clientY); drag.currentX = p.x; drag.currentY = p.y; const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy); const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100); powerFill.style.height = `${powerPct}%`; aimBadge.textContent = `Power ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`; });
+    function releaseDrag() { if (!drag) return; const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy), stoneId = drag.stoneId; drag = null; powerFill.style.height = '0%'; aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다'; if (len < 8) return; const power = Math.min(MAX_POWER, len / 22), vx = (dx / len) * power, vy = (dy / len) * power; launchStone(stoneId, vx, vy); }
+    canvas.addEventListener('pointerup', releaseDrag); canvas.addEventListener('pointerleave', releaseDrag); canvas.addEventListener('pointercancel', releaseDrag);
 
     function drawBoard() {
-      const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75);
-      grd.addColorStop(0, '#b55d27');
-      grd.addColorStop(0.58, '#93461c');
-      grd.addColorStop(1, '#5b2c14');
-      ctx.fillStyle = '#2b140b';
-      ctx.fillRect(0, 0, BOARD_W, BOARD_H);
-
-      const outer = octagonPoints();
-      const inner = octagonPoints(OCTAGON_INSET - 16);
-      const makePath = (pts) => {
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.closePath();
-      };
-
-      makePath(outer);
-      ctx.strokeStyle = '#d89a60';
-      ctx.lineWidth = 14;
-      ctx.stroke();
-
-      makePath(inner);
-      ctx.fillStyle = grd;
-      ctx.fill();
-      ctx.strokeStyle = '#6b3418';
-      ctx.lineWidth = 10;
-      ctx.stroke();
-
-      ctx.save();
-      makePath(inner);
-      ctx.clip();
-
-      const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220);
-      shine.addColorStop(0, 'rgba(255,255,255,0.25)');
-      shine.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = shine;
-      ctx.beginPath();
-      ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#111827';
-      ctx.lineWidth = 8;
-      ctx.fillStyle = 'rgba(0,0,0,0.08)';
-      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.66, 0, Math.PI * 2); ctx.stroke();
-      ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.3, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y);
-      ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56);
-      ctx.stroke();
-
-      if (drag) {
-        ctx.strokeStyle = 'rgba(255,255,255,.95)';
-        ctx.lineWidth = 7;
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        ctx.moveTo(drag.startX, drag.startY);
-        ctx.lineTo(drag.currentX, drag.currentY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-      }
-
-      for (const s of stones) {
-        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
-        ctx.lineWidth = s.active ? 5 : 2;
-        ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)';
-        ctx.stroke();
-        ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
-      }
-
-      for (const p of particles) {
-        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      ctx.restore();
+      const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75); grd.addColorStop(0, '#b55d27'); grd.addColorStop(0.58, '#93461c'); grd.addColorStop(1, '#5b2c14'); ctx.fillStyle = '#2b140b'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+      const outer = octagonPoints(), inner = octagonPoints(OCTAGON_INSET - 16); const makePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
+      makePath(outer); ctx.strokeStyle = '#d89a60'; ctx.lineWidth = 14; ctx.stroke(); makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#6b3418'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.save(); makePath(inner); ctx.clip();
+      const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220); shine.addColorStop(0, 'rgba(255,255,255,0.25)'); shine.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 8; ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.66, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.3, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
+      if (drag) { ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); }
+      for (const s of stones) { if (s.out) continue; ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill(); ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill(); ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke(); ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill(); }
+      for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); } ctx.globalAlpha = 1; ctx.restore();
     }
-
-    function draw() {
-      ctx.clearRect(0, 0, BOARD_W, BOARD_H);
-      drawBoard();
-    }
-
+    function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
     function step() {
-      if (phase === 'playing') {
-        if (!conn || isHost) {
-          stones = stones.map(s => {
-            const next = { ...s };
-            next.x += next.vx;
-            next.y += next.vy;
-            next.vx *= FRICT
+      if (phase === 'playing' && (!conn || isHost)) {
+        stones = stones.map(s => { if (s.out) return s; const next = { ...s }; next.x += next.vx; next.y += next.vy; next.vx *= FRICTION; next.vy *= FRICTION; if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0; if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0; return clampInTable(next); });
+        resolveStoneCollisions();
+        const stopped = allStopped(); const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
+        if (stopped && !hasActiveUnlaunched) { if (countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame(); else advanceTurn(false); }
+        if (conn && isHost) broadcastState();
+      }
+      updateParticles(); updateHud(); draw(); requestAnimationFrame(step);
+    }
+
+    saveNameBtn.addEventListener('click', () => { playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player'; localStorage.setItem('miniCurlingPlayerName', playerName); renderLeaderboard(); });
+    createRoomBtn.addEventListener('click', createRoom);
+    joinRoomBtn.addEventListener('click', () => { const code = (joinCodeInput.value || '').trim().toUpperCase(); if (code) joinRoom(code); });
+    copyInviteBtn.addEventListener('click', copyInviteLink); shareInviteBtn.addEventListener('click', shareInviteLink); leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
+    startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
+    resetBtn.addEventListener('click', () => { resetGame(); if (conn) sendMessage({ type: 'reset' }); });
+    rematchBtn.addEventListener('click', () => { hideOverlay(); resetGame(); if (conn) sendMessage({ type: 'rematch' }); });
+    closeOverlayBtn.addEventListener('click', hideOverlay);
+    timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
+    function initFromQuery() { const room = new URLSearchParams(window.location.search).get('room'); if (room) joinCodeInput.value = room.toUpperCase(); }
+
+    ensureAudio(); setupCollisionAudio(); renderLeaderboard(); initFromQuery(); resetGame(); requestAnimationFrame(step);
+  </script>
+</body>
+</html>
