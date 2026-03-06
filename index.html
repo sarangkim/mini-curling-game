@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Mini Curling Mobile Web</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.88);
+      --line: #1e293b;
+      --text: #ffffff;
+      --muted: #cbd5e1;
+      --blue: #2563eb;
+      --orange: #f59e0b;
+      --wood-1: #b55d27;
+      --wood-2: #93461c;
+      --wood-3: #5b2c14;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    body { min-height: 100svh; }
+    .app { max-width: 860px; margin: 0 auto; padding: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 14px;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.28);
+      backdrop-filter: blur(12px);
+    }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .sub { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .toolbar, .stats, .rules { display: grid; gap: 10px; }
+    .toolbar { margin-top: 14px; grid-template-columns: 1fr 1fr; }
+    .stats { grid-template-columns: repeat(3, 1fr); margin: 14px 0; }
+    .card { background: #020617; border: 1px solid var(--line); border-radius: 18px; padding: 12px; }
+    .label { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
+    .value { font-size: 20px; font-weight: bold; }
+    button, select {
+      width: 100%; height: 48px; border-radius: 16px; border: 1px solid #334155;
+      background: #0f172a; color: white; font-size: 16px; font-weight: 700;
+    }
+    button.primary { background: #2563eb; border-color: #2563eb; }
+    button:disabled { opacity: .55; }
+    .board-wrap {
+      margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217, 154, 96, 0.28);
+      box-shadow: inset 0 0 18px rgba(0,0,0,.25);
+      background: #3c1e12;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100%; height: auto; }
+    .rules { margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .result { margin-top: 10px; font-size: 18px; font-weight: 800; }
+    .row { display:flex; gap:10px; align-items:center; }
+    .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
+    @media (max-width: 640px) {
+      .toolbar, .stats { grid-template-columns: 1fr; }
+      h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <h1>Mini Curling Mobile Web</h1>
+      <div class="sub">휴대폰에서 바로 열어 테스트할 수 있는 웹 버전입니다. 현재 버전은 같은 기기에서 번갈아 플레이하는 로컬 대전용입니다.</div>
+
+      <div class="toolbar">
+        <div class="card">
+          <div class="label">Match time</div>
+          <select id="timeSelect">
+            <option value="30">30 seconds</option>
+            <option value="40">40 seconds</option>
+            <option value="50">50 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="label">Controls</div>
+          <div class="row">
+            <button id="startBtn" class="primary">Start Match</button>
+            <button id="resetBtn">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="card">
+          <div class="label">Turn</div>
+          <div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div>
+        </div>
+        <div class="card">
+          <div class="label">Time left</div>
+          <div class="value" id="timeText">30s</div>
+        </div>
+        <div class="card">
+          <div class="label">Score</div>
+          <div class="value" id="scoreText">0 : 0</div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board" width="720" height="960"></canvas>
+      </div>
+
+      <div class="stats">
+        <div class="card">
+          <div class="label">Blue remaining</div>
+          <div class="value" id="blueRemain">4</div>
+        </div>
+        <div class="card">
+          <div class="label">Orange remaining</div>
+          <div class="value" id="orangeRemain">4</div>
+        </div>
+        <div class="card">
+          <div class="label">Result</div>
+          <div class="value" id="resultText">Ready</div>
+        </div>
+      </div>
+
+      <div class="rules">
+        <div>• 아래 파란 돌과 위 주황 돌이 번갈아 한 개씩 움직입니다.</div>
+        <div>• 팀당 4개씩 있습니다.</div>
+        <div>• 손가락으로 끌어 점선 방향대로 발사합니다.</div>
+        <div>• 8각형 상 밖으로는 나가지 않고 벽에 튕깁니다.</div>
+        <div>• 돌끼리 부딪히거나 벽에 강하게 부딪히면 효과음이 납니다.</div>
+        <div>• 게임 시작 / 승리 / 패배 / 무승부 사운드가 함께 들어 있습니다.</div>
+        <div>• 중앙 원 안에 남은 돌 1개당 10점입니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BOARD_W = 720;
+    const BOARD_H = 960;
+    const CENTER_X = BOARD_W / 2;
+    const CENTER_Y = BOARD_H / 2;
+    const TABLE_MARGIN = 46;
+    const OCTAGON_INSET = 118;
+    const STONE_R = 24;
+    const SCORING_R = 88;
+    const MAX_POWER = 6.2;
+    const FRICTION = 0.987;
+    const MIN_SPEED = 0.05;
+    const BOUNCE = 0.92;
+    const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
+    const AUDIO_COOLDOWN_MS = 70;
+
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const timeSelect = document.getElementById('timeSelect');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const turnDot = document.getElementById('turnDot');
+    const turnText = document.getElementById('turnText');
+    const timeText = document.getElementById('timeText');
+    const scoreText = document.getElementById('scoreText');
+    const blueRemain = document.getElementById('blueRemain');
+    const orangeRemain = document.getElementById('orangeRemain');
+    const resultText = document.getElementById('resultText');
+
+    let phase = 'lobby';
+    let turn = 'blue';
+    let timeLeft = 30;
+    let timerId = null;
+    let lastFrame = 0;
+    let drag = null;
+    let audioCtx = null;
+    let audioReady = false;
+    let lastSoundAt = 0;
+
+    function ensureAudio() {
+      if (audioCtx) return audioCtx;
+      if (!window.AudioContext && !window.webkitAudioContext) return null;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioCtx();
+      audioReady = true;
+      return audioCtx;
+    }
+
+    function unlockAudio() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+    }
+
+    function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startAt);
+      osc.stop(startAt + duration + 0.02);
+    }
+
+    function noiseHit(startAt, duration, gainValue = 0.12) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      }
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      filter.type = 'bandpass';
+      filter.frequency.value = 900;
+      filter.Q.value = 0.8;
+      gain.gain.setValueAtTime(gainValue, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(startAt);
+      source.stop(startAt + duration);
+    }
+
+    function playCollisionSound(intensity = 1) {
+      const ctx = ensureAudio();
+      const now = performance.now();
+      if (!ctx || !audioReady) return;
+      if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
+      lastSoundAt = now;
+
+      const t = ctx.currentTime;
+      const volume = Math.max(0.05, Math.min(0.22, intensity * 0.2));
+      noiseHit(t, 0.06, volume);
+      tone(420 + intensity * 120, t, 0.05, 'triangle', volume * 0.9);
+      tone(260 + intensity * 80, t + 0.01, 0.07, 'sine', volume * 0.55);
+    }
+
+    function playStartSound() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(392, t, 0.12, 'triangle', 0.12);
+      tone(523.25, t + 0.12, 0.12, 'triangle', 0.14);
+      tone(659.25, t + 0.24, 0.18, 'triangle', 0.16);
+    }
+
+    function playWinSound() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(523.25, t, 0.12, 'triangle', 0.12);
+      tone(659.25, t + 0.11, 0.12, 'triangle', 0.13);
+      tone(783.99, t + 0.22, 0.14, 'triangle', 0.14);
+      tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16);
+    }
+
+    function playDrawSound() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(392, t, 0.14, 'sine', 0.1);
+      tone(349.23, t + 0.16, 0.14, 'sine', 0.095);
+      tone(392, t + 0.34, 0.2, 'sine', 0.09);
+    }
+
+    function playLoseSound() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(392, t, 0.12, 'triangle', 0.11);
+      tone(329.63, t + 0.13, 0.14, 'triangle', 0.1);
+      tone(261.63, t + 0.28, 0.2, 'sawtooth', 0.09);
+      tone(196, t + 0.5, 0.28, 'sine', 0.08);
+    }
+
+    function makeInitialStones() {
+      const laneYTop = TABLE_MARGIN + 92;
+      const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
+      const startXs = [240, 320, 400, 480];
+      return [
+        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false })),
+        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false })),
+      ];
+    }
+
+    let stones = makeInitialStones();
+    let score = { blue: 0, orange: 0 };
+
+    function octagonPoints(inset = OCTAGON_INSET) {
+      return [
+        { x: inset, y: TABLE_MARGIN },
+        { x: BOARD_W - inset, y: TABLE_MARGIN },
+        { x: BOARD_W - TABLE_MARGIN, y: inset },
+        { x: BOARD_W - TABLE_MARGIN, y: BOARD_H - inset },
+        { x: BOARD_W - inset, y: BOARD_H - TABLE_MARGIN },
+        { x: inset, y: BOARD_H - TABLE_MARGIN },
+        { x: TABLE_MARGIN, y: BOARD_H - inset },
+        { x: TABLE_MARGIN, y: inset },
+      ];
+    }
+
+    function inCircle(x, y) {
+      return Math.hypot(x - CENTER_X, y - CENTER_Y) <= SCORING_R;
+    }
+
+    function countRemaining(team) {
+      return stones.filter(s => s.team === team && !s.launched).length;
+    }
+
+    function allStopped() {
+      return stones.every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED);
+    }
+
+    function computeScores() {
+      const blueIn = stones.filter(s => s.team === 'blue' && inCircle(s.x, s.y)).length;
+      const orangeIn = stones.filter(s => s.team === 'orange' && inCircle(s.x, s.y)).length;
+      score = { blue: blueIn * 10, orange: orangeIn * 10 };
+    }
+
+    function activateNextStone(team) {
+      let activated = false;
+      stones = stones.map(s => {
+        if (!activated && s.team === team && !s.launched) {
+          activated = true;
+          return { ...s, active: true };
+        }
+        return { ...s, active: false };
+      });
+    }
+
+    function getNextTurn() {
+      return turn === 'blue' ? 'orange' : 'blue';
+    }
+
+    function clampInTable(s) {
+      const points = octagonPoints();
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        const ex = b.x - a.x;
+        const ey = b.y - a.y;
+        const len = Math.hypot(ex, ey);
+        const tx = ex / len;
+        const ty = ey / len;
+        const nx = -ty;
+        const ny = tx;
+        const dist = (s.x - a.x) * nx + (s.y - a.y) * ny;
+        if (dist < STONE_R) {
+          const push = STONE_R - dist;
+          s.x += nx * push;
+          s.y += ny * push;
+          const vn = s.vx * nx + s.vy * ny;
+          if (vn < 0) {
+            const impact = Math.min(1, Math.abs(vn) / 4.5);
+            playCollisionSound(impact * 0.8);
+            s.vx = s.vx - (1 + BOUNCE) * vn * nx;
+            s.vy = s.vy - (1 + BOUNCE) * vn * ny;
+          }
+        }
+      }
+      return s;
+    }
+
+    function resolveStoneCollisions() {
+      for (let i = 0; i < stones.length; i++) {
+        for (let j = i + 1; j < stones.length; j++) {
+          const a = stones[i];
+          const b = stones[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = STONE_R * 2;
+          if (dist === 0 || dist >= minDist) continue;
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = minDist - dist;
+          a.x -= nx * overlap * 0.5;
+          a.y -= ny * overlap * 0.5;
+          b.x += nx * overlap * 0.5;
+          b.y += ny * overlap * 0.5;
+          const dvx = a.vx - b.vx;
+          const dvy = a.vy - b.vy;
+          const relVel = dvx * nx + dvy * ny;
+          if (relVel > 0) continue;
+          const impulse = -relVel;
+          const impact = Math.min(1, Math.abs(impulse) / 5.5);
+          playCollisionSound(impact);
+          a.vx += -impulse * nx;
+          a.vy += -impulse * ny;
+          b.vx += impulse * nx;
+          b.vy += impulse * ny;
+        }
+      }
+    }
+
+    function endGame() {
+      computeScores();
+      phase = 'ended';
+      if (score.blue === score.orange) {
+        resultText.textContent = 'Draw';
+        playDrawSound();
+      } else if (score.blue > score.orange) {
+        resultText.textContent = 'Blue Team Wins';
+        playWinSound();
+      } else {
+        resultText.textContent = 'Orange Team Wins';
+        playLoseSound();
+      }
+      updateHud();
+    }
+
+    function resetGame() {
+      phase = 'lobby';
+      turn = 'blue';
+      timeLeft = Number(timeSelect.value);
+      stones = makeInitialStones();
+      score = { blue: 0, orange: 0 };
+      resultText.textContent = 'Ready';
+      if (timerId) clearInterval(timerId);
+      timerId = null;
+      updateHud();
+      draw();
+    }
+
+    function startGame() {
+      resetGame();
+      phase = 'playing';
+      resultText.textContent = 'Playing';
+      playStartSound();
+      timerId = setInterval(() => {
+        if (phase !== 'playing') return;
+        timeLeft = Math.max(0, timeLeft - 1);
+        if (timeLeft === 0) endGame();
+        updateHud();
+      }, 1000);
+      updateHud();
+    }
+
+    function updateHud() {
+      computeScores();
+      turnDot.style.background = COLORS[turn];
+      turnText.textContent = turn.toUpperCase();
+      timeText.textContent = `${timeLeft}s`;
+      scoreText.textContent = `${score.blue} : ${score.orange}`;
+      blueRemain.textContent = countRemaining('blue');
+      orangeRemain.textContent = countRemaining('orange');
+    }
+
+    function getCanvasPos(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left) * (canvas.width / rect.width),
+        y: (clientY - rect.top) * (canvas.height / rect.height),
+      };
+    }
+
+    function activeStoneForTurn() {
+      return stones.find(s => s.active && s.team === turn && !s.launched);
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      unlockAudio();
+      if (phase !== 'playing') return;
+      const p = getCanvasPos(e.clientX, e.clientY);
+      const stone = activeStoneForTurn();
+      if (!stone) return;
+      if (Math.hypot(p.x - stone.x, p.y - stone.y) <= STONE_R + 8) {
+        drag = { stoneId: stone.id, startX: stone.x, startY: stone.y, currentX: p.x, currentY: p.y };
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const p = getCanvasPos(e.clientX, e.clientY);
+      drag.currentX = p.x;
+      drag.currentY = p.y;
+    });
+
+    function releaseDrag() {
+      if (!drag) return;
+      const dx = drag.currentX - drag.startX;
+      const dy = drag.currentY - drag.startY;
+      const len = Math.hypot(dx, dy);
+      const stoneId = drag.stoneId;
+      drag = null;
+      if (len < 8) return;
+      const power = Math.min(MAX_POWER, len / 22);
+      const vx = (dx / len) * power;
+      const vy = (dy / len) * power;
+      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
+    }
+
+    canvas.addEventListener('pointerup', releaseDrag);
+    canvas.addEventListener('pointerleave', releaseDrag);
+    canvas.addEventListener('pointercancel', releaseDrag);
+
+    startBtn.addEventListener('click', () => {
+      unlockAudio();
+      startGame();
+    });
+    resetBtn.addEventListener('click', resetGame);
+    timeSelect.addEventListener('change', () => {
+      if (phase !== 'playing') {
+        timeLeft = Number(timeSelect.value);
+        updateHud();
+      }
+    });
+
+    function drawBoard() {
+      const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75);
+      grd.addColorStop(0, '#b55d27');
+      grd.addColorStop(0.58, '#93461c');
+      grd.addColorStop(1, '#5b2c14');
+      ctx.fillStyle = '#2b140b';
+      ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+
+      const outer = octagonPoints();
+      const inner = octagonPoints(OCTAGON_INSET - 16);
+
+      const makePath = (pts) => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath();
+      };
+
+      makePath(outer);
+      ctx.strokeStyle = '#d89a60';
+      ctx.lineWidth = 14;
+      ctx.stroke();
+
+      makePath(inner);
+      ctx.fillStyle = grd;
+      ctx.fill();
+      ctx.strokeStyle = '#6b3418';
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      ctx.save();
+      makePath(inner);
+      ctx.clip();
+
+      const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220);
+      shine.addColorStop(0, 'rgba(255,255,255,0.25)');
+      shine.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = shine;
+      ctx.beginPath();
+      ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.08)';
+      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.66, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, SCORING_R * 0.3, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y);
+      ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56);
+      ctx.stroke();
+
+      if (drag) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 7;
+        ctx.setLineDash([10, 10]);
+        ctx.beginPath();
+        ctx.moveTo(drag.startX, drag.startY);
+        ctx.lineTo(drag.currentX, drag.currentY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      }
+
+      for (const s of stones) {
+        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
+        ctx.lineWidth = s.active ? 5 : 2;
+        ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)';
+        ctx.stroke();
+        ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function step() {
+      if (phase === 'playing') {
+        stones = stones.map(s => {
+          const next = { ...s };
+          next.x += next.vx;
+          next.y += next.vy;
+          next.vx *= FRICTION;
+          next.vy *= FRICTION;
+          if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
+          if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
+          return clampInTable(next);
+        });
+        resolveStoneCollisions();
+
+        const stopped = allStopped();
+        const hasActiveUnlaunched = stones.some(s => s.active && !s.launched);
+        if (stopped && !hasActiveUnlaunched) {
+          const currentRemain = countRemaining(turn);
+          if (currentRemain > 0) {
+            activateNextStone(turn);
+          } else {
+            turn = getNextTurn();
+            if (countRemaining(turn) > 0) {
+              activateNextStone(turn);
+            }
+          }
+        }
+
+        if (stopped && countRemaining('blue') === 0 && countRemaining('orange') === 0) {
+          endGame();
+        }
+      }
+      updateHud();
+      draw();
+      requestAnimationFrame(step);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, BOARD_W, BOARD_H);
+      drawBoard();
+    }
+
+    ensureAudio();
+    resetGame();
+    requestAnimationFrame(step);
+  </script>
+</body>
+</html>
