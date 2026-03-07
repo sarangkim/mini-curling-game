@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mini Curling Mobile Web Online v4</title>
+  <title>Mini Curling Mobile Web v5</title>
   <style>
     :root {
       --bg: #020617;
@@ -17,7 +17,12 @@
       --warn: #b45309;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; background: radial-gradient(circle at top, #0f172a, #020617 62%); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    html, body {
+      margin: 0;
+      background: radial-gradient(circle at top, #0f172a, #020617 62%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
     body { min-height: 100svh; }
     .app { max-width: 860px; margin: 0 auto; padding: 14px; }
     .screen { display: none; }
@@ -116,7 +121,7 @@
       <div class="panel stack">
         <div class="hero">
           <h1>Mini Curling</h1>
-          <div class="sub">앱처럼 먼저 입장 화면에서 방을 만들거나 참가하세요. 연결되면 자동으로 대기실/게임 화면으로 넘어갑니다.</div>
+          <div class="sub">입장 화면에서 방을 만들거나 참가하세요. 온라인 상대가 없으면 CPU와 바로 대결할 수 있습니다.</div>
         </div>
 
         <div class="card stack">
@@ -145,7 +150,7 @@
 
         <div class="card stack">
           <div class="label">혼자 하기</div>
-          <div class="small">온라인 상대가 없으면 CPU와 바로 대결합니다.</div>
+          <div class="small">CPU가 중앙 원을 최대한 노리도록 조정되어 있습니다.</div>
           <button id="soloPlayBtn" class="good">CPU와 시작</button>
         </div>
       </div>
@@ -174,16 +179,14 @@
 
         <div class="card stack">
           <div class="label">턴 제한 시간</div>
-          <div class="row">
-            <select id="timeSelect">
-              <option value="10">10 seconds</option>
-              <option value="20" selected>20 seconds</option>
-              <option value="30">30 seconds</option>
-              <option value="40">40 seconds</option>
-              <option value="50">50 seconds</option>
-              <option value="60">60 seconds</option>
-            </select>
-          </div>
+          <select id="timeSelect">
+            <option value="10">10 seconds</option>
+            <option value="20" selected>20 seconds</option>
+            <option value="30">30 seconds</option>
+            <option value="40">40 seconds</option>
+            <option value="50">50 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
           <div class="small">각 턴 제한 시간입니다. 턴이 바뀔 때마다 시간이 다시 시작됩니다.</div>
         </div>
 
@@ -237,7 +240,7 @@
         <div class="grid-2" style="margin-top:12px;">
           <div class="card">
             <div class="label">How to play</div>
-            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. 벽 탄성을 높여서 쿠션을 이용해 중심 원을 노릴 수 있게 했습니다.</div>
+            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. 벽 반발과 CPU 조준도 조정했습니다.</div>
           </div>
           <div class="card">
             <div class="label">Leaderboard (이 기기 저장)</div>
@@ -252,17 +255,13 @@
     const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
     const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
     const OUTER_RING_R = SCORING_R, MIDDLE_RING_R = SCORING_R * 0.66, INNER_RING_R = SCORING_R * 0.3;
-    const MAX_POWER = 6.2, FRICTION = 0.991, MIN_SPEED = 0.05, BOUNCE = 0.985;
+    const MAX_POWER = 5.8, FRICTION = 0.992, MIN_SPEED = 0.05, BOUNCE = 0.985;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const $ = (id) => document.getElementById(id);
-    const screens = {
-      entry: $('entryScreen'),
-      lobby: $('lobbyScreen'),
-      game: $('gameScreen')
-    };
+    const screens = { entry: $('entryScreen'), lobby: $('lobbyScreen'), game: $('gameScreen') };
     const canvas = $('board');
     const ctx = canvas.getContext('2d');
     const timeSelect = $('timeSelect');
@@ -309,7 +308,6 @@
     let drag = null;
     let particles = [];
     let audioCtx = null;
-    let collisionAudio = null;
     let lastSoundAt = 0;
     let peer = null;
     let conn = null;
@@ -341,24 +339,9 @@
       return audioCtx;
     }
 
-    function setupCollisionAudio() {
-      collisionAudio = new Audio(COLLISION_SOUND_URL);
-      collisionAudio.preload = 'auto';
-      collisionAudio.playsInline = true;
-      collisionAudio.crossOrigin = 'anonymous';
-    }
-
     function unlockAudio() {
       const ctx = ensureAudio();
       if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
-      if (collisionAudio) {
-        collisionAudio.muted = true;
-        collisionAudio.play().then(() => {
-          collisionAudio.pause();
-          collisionAudio.currentTime = 0;
-          collisionAudio.muted = false;
-        }).catch(() => {});
-      }
     }
 
     function playCollisionSound(intensity = 1) {
@@ -391,40 +374,10 @@
       osc.stop(startAt + duration + 0.02);
     }
 
-    function playStartSound() {
-      unlockAudio();
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.12, 'triangle', 0.12);
-      tone(523.25, t + 0.12, 0.12, 'triangle', 0.14);
-      tone(659.25, t + 0.24, 0.18, 'triangle', 0.16);
-    }
-    function playWinSound() {
-      unlockAudio();
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(523.25, t, 0.12, 'triangle', 0.12);
-      tone(659.25, t + 0.11, 0.12, 'triangle', 0.13);
-      tone(783.99, t + 0.22, 0.14, 'triangle', 0.14);
-      tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16);
-    }
-    function playDrawSound() {
-      unlockAudio();
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.14, 'sine', 0.1);
-      tone(349.23, t + 0.16, 0.14, 'sine', 0.095);
-      tone(392, t + 0.34, 0.2, 'sine', 0.09);
-    }
-    function playLoseSound() {
-      unlockAudio();
-      const ctx = ensureAudio(); if (!ctx) return;
-      const t = ctx.currentTime + 0.02;
-      tone(392, t, 0.12, 'triangle', 0.11);
-      tone(329.63, t + 0.13, 0.14, 'triangle', 0.1);
-      tone(261.63, t + 0.28, 0.2, 'sawtooth', 0.09);
-      tone(196, t + 0.5, 0.28, 'sine', 0.08);
-    }
+    function playStartSound() { unlockAudio(); const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392, t, 0.12, 'triangle', 0.12); tone(523.25, t + 0.12, 0.12, 'triangle', 0.14); tone(659.25, t + 0.24, 0.18, 'triangle', 0.16); }
+    function playWinSound() { unlockAudio(); const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(523.25, t, 0.12, 'triangle', 0.12); tone(659.25, t + 0.11, 0.12, 'triangle', 0.13); tone(783.99, t + 0.22, 0.14, 'triangle', 0.14); tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16); }
+    function playDrawSound() { unlockAudio(); const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392, t, 0.14, 'sine', 0.1); tone(349.23, t + 0.16, 0.14, 'sine', 0.095); tone(392, t + 0.34, 0.2, 'sine', 0.09); }
+    function playLoseSound() { unlockAudio(); const ctx = ensureAudio(); if (!ctx) return; const t = ctx.currentTime + 0.02; tone(392, t, 0.12, 'triangle', 0.11); tone(329.63, t + 0.13, 0.14, 'triangle', 0.1); tone(261.63, t + 0.28, 0.2, 'sawtooth', 0.09); tone(196, t + 0.5, 0.28, 'sine', 0.08); }
 
     function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
     function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
@@ -521,7 +474,8 @@
           const wallKey = `${s.id}:${i}`;
           wallContacts.add(wallKey);
           const push = STONE_R - dist;
-          s.x += nx * push; s.y += ny * push;
+          s.x += nx * push;
+          s.y += ny * push;
           const vn = s.vx * nx + s.vy * ny;
           if (vn < 0) {
             const impact = Math.min(1, Math.abs(vn) / 4.5);
@@ -529,7 +483,7 @@
               playCollisionSound(impact * 0.8);
               vibrate(10);
               spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
-              if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.75)) });
+              if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.8)) });
             }
             s.vx = s.vx - (1 + BOUNCE) * vn * nx;
             s.vy = s.vy - (1 + BOUNCE) * vn * ny;
@@ -557,16 +511,14 @@
             playCollisionSound(impact);
             vibrate(14);
             spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
-            if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.9)) });
+            if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.95)) });
           }
           a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
         }
       }
     }
 
-    function loadLeaderboard() {
-      try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); } catch { return []; }
-    }
+    function loadLeaderboard() { try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); } catch { return []; } }
     function saveLeaderboard(items) { localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10))); }
     function escapeHtml(text) { return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
@@ -595,11 +547,7 @@
       renderLeaderboard();
     }
 
-    function showOverlay(title, sub) {
-      overlayTitle.textContent = title;
-      overlaySub.textContent = sub;
-      resultOverlay.classList.add('show');
-    }
+    function showOverlay(title, sub) { overlayTitle.textContent = title; overlaySub.textContent = sub; resultOverlay.classList.add('show'); }
     function hideOverlay() { resultOverlay.classList.remove('show'); }
     function resetTurnClock() { timeLeft = Number(timeSelect.value); }
 
@@ -622,18 +570,9 @@
       else playLoseSound();
     }
 
-    function enterGameScreen(reasonText = '게임이 진행 중입니다.') {
-      gameSubText.textContent = reasonText;
-      showScreen('game');
-    }
-
-    function enterLobbyScreen() {
-      showScreen('lobby');
-    }
-
-    function enterEntryScreen() {
-      showScreen('entry');
-    }
+    function enterGameScreen(reasonText = '게임이 진행 중입니다.') { gameSubText.textContent = reasonText; showScreen('game'); }
+    function enterLobbyScreen() { showScreen('lobby'); }
+    function enterEntryScreen() { showScreen('entry'); }
 
     function endGame() {
       computeScores();
@@ -797,7 +736,12 @@
     function teardownRoom() {
       if (conn) try { conn.close(); } catch {}
       if (peer) try { peer.destroy(); } catch {}
-      conn = null; peer = null; isHost = false; myTeam = 'blue'; roomCode = ''; playersConnected = 1;
+      conn = null;
+      peer = null;
+      isHost = false;
+      myTeam = 'blue';
+      roomCode = '';
+      playersConnected = 1;
       history.replaceState({}, '', window.location.pathname);
       updateHud();
     }
@@ -868,6 +812,81 @@
       sendMessage({ type: 'launch', stoneId, vx, vy });
     }
 
+    function simulateCpuShot(stone, vx, vy) {
+      let x = stone.x;
+      let y = stone.y;
+      let dx = vx;
+      let dy = vy;
+      const points = octagonPoints();
+      for (let step = 0; step < 260; step++) {
+        x += dx;
+        y += dy;
+        dx *= FRICTION;
+        dy *= FRICTION;
+        if (Math.abs(dx) < MIN_SPEED) dx = 0;
+        if (Math.abs(dy) < MIN_SPEED) dy = 0;
+        for (let i = 0; i < points.length; i++) {
+          const a = points[i];
+          const b = points[(i + 1) % points.length];
+          const ex = b.x - a.x;
+          const ey = b.y - a.y;
+          const len = Math.hypot(ex, ey);
+          const nx = -(ey / len);
+          const ny = ex / len;
+          const dist = (x - a.x) * nx + (y - a.y) * ny;
+          if (dist < STONE_R) {
+            const push = STONE_R - dist;
+            x += nx * push;
+            y += ny * push;
+            const vn = dx * nx + dy * ny;
+            if (vn < 0) {
+              dx = dx - (1 + BOUNCE) * vn * nx;
+              dy = dy - (1 + BOUNCE) * vn * ny;
+            }
+          }
+        }
+        if (dx === 0 && dy === 0) break;
+      }
+      const distToCenter = Math.hypot(x - CENTER_X, y - CENTER_Y);
+      const nearestEdge = Math.max(0, distToCenter - STONE_R);
+      let scoreEval = 0;
+      if (nearestEdge <= INNER_RING_R) scoreEval = 300;
+      else if (nearestEdge <= MIDDLE_RING_R) scoreEval = 200;
+      else if (nearestEdge <= OUTER_RING_R) scoreEval = 100;
+      scoreEval -= distToCenter * 0.35;
+      scoreEval -= Math.abs(x - CENTER_X) * 0.04;
+      return { x, y, score: scoreEval };
+    }
+
+    function performAIShot() {
+      if (conn || phase !== 'playing' || turn !== 'orange') return;
+      const stone = activeStoneForTurn();
+      if (!stone || !allStopped()) return;
+      let best = null;
+      const targetPoints = [
+        { x: CENTER_X, y: CENTER_Y },
+        { x: CENTER_X - 20, y: CENTER_Y + 4 },
+        { x: CENTER_X + 20, y: CENTER_Y - 6 },
+        { x: CENTER_X - 36, y: CENTER_Y + 14 },
+        { x: CENTER_X + 36, y: CENTER_Y + 14 }
+      ];
+      for (const target of targetPoints) {
+        const dx = target.x - stone.x;
+        const dy = target.y - stone.y;
+        const len = Math.hypot(dx, dy) || 1;
+        for (let scale = 0.78; scale <= 1.08; scale += 0.03) {
+          const power = Math.min(MAX_POWER * 0.98, Math.max(1.8, (len / 28) * scale));
+          const vx = (dx / len) * power;
+          const vy = (dy / len) * power;
+          const sim = simulateCpuShot(stone, vx, vy);
+          const candidate = { vx, vy, score: sim.score };
+          if (!best || candidate.score > best.score) best = candidate;
+        }
+      }
+      if (!best) return;
+      launchStone(stone.id, best.vx, best.vy);
+    }
+
     canvas.addEventListener('pointerdown', (e) => {
       unlockAudio();
       if (phase !== 'playing' || !canControlTurn()) return;
@@ -883,7 +902,8 @@
       const p = getCanvasPos(e.clientX, e.clientY);
       drag.currentX = p.x;
       drag.currentY = p.y;
-      const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY;
+      const dx = drag.currentX - drag.startX;
+      const dy = drag.currentY - drag.startY;
       const len = Math.hypot(dx, dy);
       const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100);
       powerFill.style.height = `${powerPct}%`;
@@ -892,7 +912,9 @@
 
     function releaseDrag() {
       if (!drag) return;
-      const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy);
+      const dx = drag.currentX - drag.startX;
+      const dy = drag.currentY - drag.startY;
+      const len = Math.hypot(dx, dy);
       const stoneId = drag.stoneId;
       drag = null;
       powerFill.style.height = '0%';
@@ -944,19 +966,6 @@
 
     function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
 
-    function performAIShot() {
-      if (conn || phase !== 'playing' || turn !== 'orange') return;
-      const stone = activeStoneForTurn();
-      if (!stone || !allStopped()) return;
-      const targetX = CENTER_X + (Math.random() - 0.5) * 90;
-      const targetY = CENTER_Y + (Math.random() - 0.5) * 90;
-      const dx = targetX - stone.x;
-      const dy = targetY - stone.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const desired = Math.min(MAX_POWER * 0.92, Math.max(2.6, len / 42));
-      launchStone(stone.id, (dx / len) * desired, (dy / len) * desired);
-    }
-
     function step() {
       if (phase === 'playing' && (!conn || isHost)) {
         pairContacts = new Set();
@@ -981,10 +990,7 @@
         prevWallContacts = wallContacts;
       }
       if (!conn && phase === 'playing' && turn === 'orange' && allStopped() && !aiShotTimeout) {
-        aiShotTimeout = setTimeout(() => {
-          aiShotTimeout = null;
-          performAIShot();
-        }, AI_SHOT_DELAY_MS);
+        aiShotTimeout = setTimeout(() => { aiShotTimeout = null; performAIShot(); }, AI_SHOT_DELAY_MS);
       }
       if ((conn || phase !== 'playing' || turn !== 'orange' || !allStopped()) && aiShotTimeout) {
         clearTimeout(aiShotTimeout);
@@ -1003,34 +1009,14 @@
     });
 
     createRoomBtn.addEventListener('click', createRoom);
-    joinRoomBtn.addEventListener('click', () => {
-      unlockAudio();
-      tryJoinFromInput();
-    });
+    joinRoomBtn.addEventListener('click', () => { unlockAudio(); tryJoinFromInput(); });
     joinCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); unlockAudio(); tryJoinFromInput(); } });
     copyInviteBtn.addEventListener('click', copyInviteLink);
     shareInviteBtn.addEventListener('click', shareInviteLink);
-    leaveRoomBtn.addEventListener('click', () => {
-      teardownRoom();
-      resetGame();
-      enterEntryScreen();
-    });
-    soloPlayBtn.addEventListener('click', () => {
-      unlockAudio();
-      teardownRoom();
-      enterGameScreen('CPU와 대전이 시작되었습니다.');
-      startGame();
-    });
-    backToLobbyBtn.addEventListener('click', () => {
-      if (roomCode) enterLobbyScreen();
-      else enterEntryScreen();
-    });
-    startBtn.addEventListener('click', () => {
-      unlockAudio();
-      if (conn && !isHost) return;
-      startGame();
-      if (conn && isHost) sendMessage({ type: 'start' });
-    });
+    leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); enterEntryScreen(); });
+    soloPlayBtn.addEventListener('click', () => { unlockAudio(); teardownRoom(); enterGameScreen('CPU와 대전이 시작되었습니다.'); startGame(); });
+    backToLobbyBtn.addEventListener('click', () => { if (roomCode) enterLobbyScreen(); else enterEntryScreen(); });
+    startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
       hideOverlay();
@@ -1061,14 +1047,10 @@
       const room = new URLSearchParams(window.location.search).get('room');
       if (room) {
         joinCodeInput.value = room.toUpperCase();
-        setTimeout(() => {
-          unlockAudio();
-          tryJoinFromInput();
-        }, 250);
+        setTimeout(() => { unlockAudio(); tryJoinFromInput(); }, 250);
       }
     }
 
-    setupCollisionAudio();
     stones = makeInitialStones();
     renderLeaderboard();
     resetGame();
