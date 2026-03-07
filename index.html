@@ -237,7 +237,7 @@
         <div class="grid-2" style="margin-top:12px;">
           <div class="card">
             <div class="label">How to play</div>
-            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다.</div>
+            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. 벽 탄성을 높여서 쿠션을 이용해 중심 원을 노릴 수 있게 했습니다.</div>
           </div>
           <div class="card">
             <div class="label">Leaderboard (이 기기 저장)</div>
@@ -252,7 +252,7 @@
     const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
     const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
     const OUTER_RING_R = SCORING_R, MIDDLE_RING_R = SCORING_R * 0.66, INNER_RING_R = SCORING_R * 0.3;
-    const MAX_POWER = 6.2, FRICTION = 0.987, MIN_SPEED = 0.05, BOUNCE = 0.92;
+    const MAX_POWER = 6.2, FRICTION = 0.991, MIN_SPEED = 0.05, BOUNCE = 0.985;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
@@ -345,6 +345,7 @@
       collisionAudio = new Audio(COLLISION_SOUND_URL);
       collisionAudio.preload = 'auto';
       collisionAudio.playsInline = true;
+      collisionAudio.crossOrigin = 'anonymous';
     }
 
     function unlockAudio() {
@@ -362,12 +363,13 @@
 
     function playCollisionSound(intensity = 1) {
       const now = performance.now();
-      if (!collisionAudio) return;
       if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
       lastSoundAt = now;
       try {
-        const sfx = collisionAudio.cloneNode();
-        sfx.volume = Math.max(0.18, Math.min(0.95, intensity * 0.9));
+        const sfx = new Audio(COLLISION_SOUND_URL);
+        sfx.preload = 'auto';
+        sfx.playsInline = true;
+        sfx.volume = Math.max(0.2, Math.min(1, intensity * 0.95));
         sfx.currentTime = 0;
         sfx.play().catch(() => {});
       } catch {}
@@ -390,6 +392,7 @@
     }
 
     function playStartSound() {
+      unlockAudio();
       const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.12);
@@ -397,6 +400,7 @@
       tone(659.25, t + 0.24, 0.18, 'triangle', 0.16);
     }
     function playWinSound() {
+      unlockAudio();
       const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(523.25, t, 0.12, 'triangle', 0.12);
@@ -405,6 +409,7 @@
       tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16);
     }
     function playDrawSound() {
+      unlockAudio();
       const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.14, 'sine', 0.1);
@@ -412,6 +417,7 @@
       tone(392, t + 0.34, 0.2, 'sine', 0.09);
     }
     function playLoseSound() {
+      unlockAudio();
       const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.11);
@@ -919,155 +925,4 @@
       ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18); ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18); ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
-      ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
-      if (drag) {
-        ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke();
-        ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
-      }
-      for (const s of stones) {
-        if (s.out) continue;
-        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
-        ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke();
-        ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
-      }
-      for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); }
-      ctx.globalAlpha = 1; ctx.restore();
-    }
-
-    function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
-
-    function performAIShot() {
-      if (conn || phase !== 'playing' || turn !== 'orange') return;
-      const stone = activeStoneForTurn();
-      if (!stone || !allStopped()) return;
-      const targetX = CENTER_X + (Math.random() - 0.5) * 90;
-      const targetY = CENTER_Y + (Math.random() - 0.5) * 90;
-      const dx = targetX - stone.x;
-      const dy = targetY - stone.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const desired = Math.min(MAX_POWER * 0.92, Math.max(2.6, len / 42));
-      launchStone(stone.id, (dx / len) * desired, (dy / len) * desired);
-    }
-
-    function step() {
-      if (phase === 'playing' && (!conn || isHost)) {
-        pairContacts = new Set();
-        wallContacts = new Set();
-        stones = stones.map(s => {
-          if (s.out) return s;
-          const next = { ...s };
-          next.x += next.vx; next.y += next.vy; next.vx *= FRICTION; next.vy *= FRICTION;
-          if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
-          if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
-          return clampInTable(next);
-        });
-        resolveStoneCollisions();
-        const stopped = allStopped();
-        const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
-        if (stopped && !hasActiveUnlaunched) {
-          if (countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame();
-          else advanceTurn(false);
-        }
-        if (conn && isHost) broadcastState();
-        prevPairContacts = pairContacts;
-        prevWallContacts = wallContacts;
-      }
-      if (!conn && phase === 'playing' && turn === 'orange' && allStopped() && !aiShotTimeout) {
-        aiShotTimeout = setTimeout(() => {
-          aiShotTimeout = null;
-          performAIShot();
-        }, AI_SHOT_DELAY_MS);
-      }
-      if ((conn || phase !== 'playing' || turn !== 'orange' || !allStopped()) && aiShotTimeout) {
-        clearTimeout(aiShotTimeout);
-        aiShotTimeout = null;
-      }
-      updateParticles();
-      updateHud();
-      draw();
-      requestAnimationFrame(step);
-    }
-
-    saveNameBtn.addEventListener('click', () => {
-      playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
-      localStorage.setItem('miniCurlingPlayerName', playerName);
-      renderLeaderboard();
-    });
-
-    createRoomBtn.addEventListener('click', createRoom);
-    joinRoomBtn.addEventListener('click', () => {
-      unlockAudio();
-      tryJoinFromInput();
-    });
-    joinCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); unlockAudio(); tryJoinFromInput(); } });
-    copyInviteBtn.addEventListener('click', copyInviteLink);
-    shareInviteBtn.addEventListener('click', shareInviteLink);
-    leaveRoomBtn.addEventListener('click', () => {
-      teardownRoom();
-      resetGame();
-      enterEntryScreen();
-    });
-    soloPlayBtn.addEventListener('click', () => {
-      unlockAudio();
-      teardownRoom();
-      enterGameScreen('CPU와 대전이 시작되었습니다.');
-      startGame();
-    });
-    backToLobbyBtn.addEventListener('click', () => {
-      if (roomCode) enterLobbyScreen();
-      else enterEntryScreen();
-    });
-    startBtn.addEventListener('click', () => {
-      unlockAudio();
-      if (conn && !isHost) return;
-      startGame();
-      if (conn && isHost) sendMessage({ type: 'start' });
-    });
-    rematchBtn.addEventListener('click', () => {
-      unlockAudio();
-      hideOverlay();
-      if (conn) {
-        if (!isHost) {
-          overlayTitle.textContent = '호스트가 다시 시작해야 합니다';
-          overlaySub.textContent = '온라인에서는 방을 만든 사람이 Rematch를 눌러야 새 게임이 시작됩니다.';
-          resultOverlay.classList.add('show');
-          return;
-        }
-        startGame();
-        sendMessage({ type: 'rematch' });
-        return;
-      }
-      startGame();
-    });
-    closeOverlayBtn.addEventListener('click', hideOverlay);
-    timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
-
-    function tryJoinFromInput() {
-      const code = (joinCodeInput.value || '').trim().toUpperCase();
-      if (!code) return;
-      joinCodeInput.value = code;
-      joinRoom(code);
-    }
-
-    function initFromQuery() {
-      const room = new URLSearchParams(window.location.search).get('room');
-      if (room) {
-        joinCodeInput.value = room.toUpperCase();
-        setTimeout(() => {
-          unlockAudio();
-          tryJoinFromInput();
-        }, 250);
-      }
-    }
-
-    setupCollisionAudio();
-    stones = makeInitialStones();
-    renderLeaderboard();
-    resetGame();
-    initFromQuery();
-    requestAnimationFrame(step);
-  </script>
-</body>
-</html>
+      ctx.f
