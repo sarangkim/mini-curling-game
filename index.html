@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mini Curling Mobile Web Online v2</title>
+  <title>Mini Curling Mobile Web Online v3</title>
   <style>
     :root {
       --bg: #020617;
@@ -38,55 +38,23 @@
     button.good { background: #166534; border-color: #166534; }
     button.warn { background: #92400e; border-color: #92400e; }
     button:disabled, select:disabled, input:disabled { opacity: .55; }
-    .pill {
-      display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px;
-      background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted);
-    }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px; background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted); }
     .status-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .link-box {
-      min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151;
-      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5;
-    }
-    .board-wrap {
-      position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28);
-      box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none;
-    }
+    .link-box { min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151; font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5; }
+    .board-wrap { position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28); box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none; }
     canvas { display: block; width: 100%; height: auto; }
     .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
-    .overlay {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55));
-      opacity: 0; pointer-events: none; transition: opacity .25s ease;
-    }
+    .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55)); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
     .overlay.show { opacity: 1; pointer-events: auto; }
-    .overlay-card {
-      min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px;
-      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35);
-    }
+    .overlay-card { min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px; padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
     .overlay-title { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
-    .power-wrap {
-      position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden;
-    }
-    .power-fill {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
-      background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%);
-      transition: height .05s linear;
-    }
-    .aim-badge {
-      position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0;
-    }
+    .power-wrap { position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden; }
+    .power-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%); transition: height .05s linear; }
+    .aim-badge { position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0; }
     .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
-    .leader-row {
-      display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center;
-      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
-    }
-    .rank-badge {
-      width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; background: #172033; color: white;
-    }
+    .leader-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041; }
+    .rank-badge { width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #172033; color: white; }
     @media (max-width: 760px) {
       .online-grid, .bottom-grid, .stats { grid-template-columns: 1fr; }
       h1 { font-size: 22px; }
@@ -98,7 +66,7 @@
 <body>
   <div class="app">
     <div class="panel">
-      <h1>Mini Curling Mobile Web Online v2</h1>
+      <h1>Mini Curling Mobile Web Online v3</h1>
       <div class="sub">턴 제한 시간 방식의 온라인 2인 미니 컬링입니다. 온라인 상대가 없으면 컴퓨터와 대결합니다.</div>
 
       <div class="online-grid">
@@ -260,7 +228,8 @@
     let pairContacts = new Set();
     let wallContacts = new Set();
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
-
+    let stones = [];
+    let score = { blue: 0, orange: 0 };
     playerNameInput.value = playerName;
 
     function ensureAudio() {
@@ -288,6 +257,16 @@
           collisionAudio.muted = false;
         }).catch(() => {});
       }
+    }
+
+    function playRemoteCollisionSound() {
+      if (!collisionAudio) return;
+      try {
+        const sfx = collisionAudio.cloneNode();
+        sfx.volume = 0.45;
+        sfx.currentTime = 0;
+        sfx.play().catch(() => {});
+      } catch {}
     }
 
     function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
@@ -361,9 +340,7 @@
       if (navigator.vibrate) navigator.vibrate(ms);
     }
 
-    function randomCode() {
-      return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
+    function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
     function octagonPoints(inset = OCTAGON_INSET) {
       return [
@@ -388,9 +365,6 @@
       ];
     }
 
-    let stones = makeInitialStones();
-    let score = { blue: 0, orange: 0 };
-
     function stoneScore(stone) {
       if (stone.out) return 0;
       const dist = Math.hypot(stone.x - CENTER_X, stone.y - CENTER_Y);
@@ -401,13 +375,8 @@
       return 0;
     }
 
-    function countRemaining(team) {
-      return stones.filter(s => s.team === team && !s.launched && !s.out).length;
-    }
-
-    function allStopped() {
-      return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED);
-    }
+    function countRemaining(team) { return stones.filter(s => s.team === team && !s.launched && !s.out).length; }
+    function allStopped() { return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED); }
 
     function computeScores() {
       score = {
@@ -427,21 +396,10 @@
       });
     }
 
-    function getNextTurn() {
-      return turn === 'blue' ? 'orange' : 'blue';
-    }
-
-    function isAIMode() {
-      return !conn && turn === 'orange';
-    }
-
-    function canControlTurn() {
-      return phase === 'playing' && !isAIMode() && (!conn || myTeam === turn);
-    }
-
-    function activeStoneForTurn() {
-      return stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
-    }
+    function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
+    function isAIMode() { return !conn && turn === 'orange'; }
+    function canControlTurn() { return phase === 'playing' && !isAIMode() && (!conn || myTeam === turn); }
+    function activeStoneForTurn() { return stones.find(s => s.active && s.team === turn && !s.launched && !s.out); }
 
     function makeInviteLink() {
       if (!roomCode) return '';
@@ -455,25 +413,13 @@
       for (let i = 0; i < count; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = 1 + Math.random() * (2.5 + intensity * 2.2);
-        particles.push({
-          x, y,
-          vx: Math.cos(a) * sp,
-          vy: Math.sin(a) * sp,
-          life: 18 + Math.random() * 16,
-          maxLife: 34,
-          size: 2 + Math.random() * 4,
-          color
-        });
+        particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 18 + Math.random() * 16, maxLife: 34, size: 2 + Math.random() * 4, color });
       }
     }
 
     function updateParticles() {
       particles = particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.96;
-        p.vy *= 0.96;
-        p.life -= 1;
+        p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life -= 1;
         return p.life > 0;
       });
     }
@@ -481,23 +427,16 @@
     function clampInTable(s) {
       const points = octagonPoints();
       for (let i = 0; i < points.length; i++) {
-        const a = points[i];
-        const b = points[(i + 1) % points.length];
-        const ex = b.x - a.x;
-        const ey = b.y - a.y;
-        const len = Math.hypot(ex, ey);
-        const nx = -(ey / len);
-        const ny = ex / len;
+        const a = points[i], b = points[(i + 1) % points.length];
+        const ex = b.x - a.x, ey = b.y - a.y, len = Math.hypot(ex, ey);
+        const nx = -(ey / len), ny = ex / len;
         const dist = (s.x - a.x) * nx + (s.y - a.y) * ny;
-
         if (dist < STONE_R) {
           const wallKey = `${s.id}:${i}`;
           wallContacts.add(wallKey);
-
           const push = STONE_R - dist;
           s.x += nx * push;
           s.y += ny * push;
-
           const vn = s.vx * nx + s.vy * ny;
           if (vn < 0) {
             const impact = Math.min(1, Math.abs(vn) / 4.5);
@@ -517,71 +456,32 @@
     function resolveStoneCollisions() {
       for (let i = 0; i < stones.length; i++) {
         for (let j = i + 1; j < stones.length; j++) {
-          const a = stones[i];
-          const b = stones[j];
+          const a = stones[i], b = stones[j];
           if (a.out || b.out) continue;
-
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.hypot(dx, dy);
-          const minDist = STONE_R * 2;
+          const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy), minDist = STONE_R * 2;
           if (dist === 0 || dist >= minDist) continue;
-
           const pairKey = [a.id, b.id].sort().join('|');
           pairContacts.add(pairKey);
-
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const overlap = minDist - dist;
-
-          a.x -= nx * overlap * 0.5;
-          a.y -= ny * overlap * 0.5;
-          b.x += nx * overlap * 0.5;
-          b.y += ny * overlap * 0.5;
-
-          const dvx = a.vx - b.vx;
-          const dvy = a.vy - b.vy;
-          const relVel = dvx * nx + dvy * ny;
+          const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
+          a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5; b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
+          const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
           if (relVel > 0) continue;
-
-          const impulse = -relVel;
-          const impact = Math.min(1, Math.abs(impulse) / 5.5);
-
+          const impulse = -relVel, impact = Math.min(1, Math.abs(impulse) / 5.5);
           if (!prevPairContacts.has(pairKey)) {
             playCollisionSound(impact);
             vibrate(14);
             spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
           }
-
-          a.vx += -impulse * nx;
-          a.vy += -impulse * ny;
-          b.vx += impulse * nx;
-          b.vy += impulse * ny;
+          a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
         }
       }
     }
 
     function loadLeaderboard() {
-      try {
-        return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]');
-      } catch {
-        return [];
-      }
+      try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); } catch { return []; }
     }
-
-    function saveLeaderboard(items) {
-      localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10)));
-    }
-
-    function escapeHtml(text) {
-      return String(text).replace(/[&<>"']/g, (m) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      }[m]));
-    }
+    function saveLeaderboard(items) { localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10))); }
+    function escapeHtml(text) { return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
     function renderLeaderboard() {
       const items = loadLeaderboard();
@@ -589,40 +489,21 @@
         leaderboardEl.innerHTML = '<div class="small">아직 기록이 없습니다. 한 판 해보세요.</div>';
         return;
       }
-      leaderboardEl.innerHTML = items.map((item, idx) => `
-        <div class="leader-row">
-          <div class="rank-badge">${idx + 1}</div>
-          <div>
-            <div style="font-weight:800;">${escapeHtml(item.name)}</div>
-            <div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div>
-          </div>
-          <div style="font-weight:800; color:#f8fafc;">${item.points} pt</div>
-        </div>
-      `).join('');
+      leaderboardEl.innerHTML = items.map((item, idx) => `<div class="leader-row"><div class="rank-badge">${idx + 1}</div><div><div style="font-weight:800;">${escapeHtml(item.name)}</div><div class="small">W ${item.wins} · D ${item.draws} · L ${item.losses}</div></div><div style="font-weight:800; color:#f8fafc;">${item.points} pt</div></div>`).join('');
     }
 
     function recordLeaderboard(result) {
       const items = loadLeaderboard();
       const existing = items.find(i => i.name === playerName);
-
       if (existing) {
         existing.wins += result === 'win' ? 1 : 0;
         existing.losses += result === 'lose' ? 1 : 0;
         existing.draws += result === 'draw' ? 1 : 0;
         existing.points += score[myTeam];
       } else {
-        items.push({
-          name: playerName,
-          wins: result === 'win' ? 1 : 0,
-          losses: result === 'lose' ? 1 : 0,
-          draws: result === 'draw' ? 1 : 0,
-          points: score[myTeam]
-        });
+        items.push({ name: playerName, wins: result === 'win' ? 1 : 0, losses: result === 'lose' ? 1 : 0, draws: result === 'draw' ? 1 : 0, points: score[myTeam] });
       }
-
-      items.sort((a, b) =>
-        (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points
-      );
+      items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points);
       saveLeaderboard(items);
       renderLeaderboard();
     }
@@ -632,77 +513,56 @@
       overlaySub.textContent = sub;
       resultOverlay.classList.add('show');
     }
+    function hideOverlay() { resultOverlay.classList.remove('show'); }
+    function resetTurnClock() { timeLeft = Number(timeSelect.value); }
 
-    function hideOverlay() {
-      resultOverlay.classList.remove('show');
+    function resultForTeam(team) {
+      if (score.blue === score.orange) return 'draw';
+      const winner = score.blue > score.orange ? 'blue' : 'orange';
+      return winner === team ? 'win' : 'lose';
     }
 
-    function resetTurnClock() {
-      timeLeft = Number(timeSelect.value);
+    function resultTitleForTeam(team) {
+      const r = resultForTeam(team);
+      if (r === 'draw') return '무승부';
+      return r === 'win' ? 'You Win' : 'You Lose';
+    }
+
+    function playResultSoundForTeam(team) {
+      const r = resultForTeam(team);
+      if (r === 'draw') playDrawSound();
+      else if (r === 'win') playWinSound();
+      else playLoseSound();
     }
 
     function endGame() {
       computeScores();
       phase = 'ended';
-
-      let finalText = 'Draw';
-      let finalSub = `BLUE ${score.blue} : ORANGE ${score.orange}`;
-
-      if (score.blue === score.orange) {
-        resultText.textContent = 'Draw';
-        playDrawSound();
-        recordLeaderboard('draw');
-        finalText = '무승부';
-      } else if (score.blue > score.orange) {
-        resultText.textContent = 'Blue Team Wins';
-        finalText = 'Blue Wins';
-        if (myTeam === 'blue') {
-          playWinSound();
-          recordLeaderboard('win');
-        } else {
-          playLoseSound();
-          recordLeaderboard('lose');
-        }
-      } else {
-        resultText.textContent = 'Orange Team Wins';
-        finalText = 'Orange Wins';
-        if (myTeam === 'orange') {
-          playWinSound();
-          recordLeaderboard('win');
-        } else {
-          playLoseSound();
-          recordLeaderboard('lose');
-        }
-      }
-
-      showOverlay(finalText, finalSub + ' · Rematch를 누르면 새 게임이 바로 시작됩니다.');
+      const teamResult = resultForTeam(myTeam);
+      resultText.textContent = teamResult === 'draw' ? 'Draw' : (teamResult === 'win' ? 'You Win' : 'You Lose');
+      playResultSoundForTeam(myTeam);
+      recordLeaderboard(teamResult);
+      showOverlay(resultTitleForTeam(myTeam), `BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.`);
       updateHud();
-      broadcastState();
+      broadcastState({ type: 'ended', teamResultHost: resultForTeam('blue'), teamResultGuest: resultForTeam('orange') });
     }
 
     function advanceTurn(forcedTimeout = false) {
       if (forcedTimeout) {
         const active = stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
         if (active) {
-          stones = stones.map(s =>
-            s.id === active.id
-              ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 }
-              : s
-          );
+          stones = stones.map(s => s.id === active.id ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 } : s);
         }
       }
-
       const nextPreferred = getNextTurn();
       if (countRemaining(nextPreferred) > 0) turn = nextPreferred;
       else if (countRemaining(turn) > 0) {}
       else if (countRemaining('blue') > 0) turn = 'blue';
       else if (countRemaining('orange') > 0) turn = 'orange';
-
       if (countRemaining('blue') === 0 && countRemaining('orange') === 0) {
         if (allStopped()) endGame();
         return;
       }
-
       activateNextStone(turn);
       resetTurnClock();
       updateHud();
@@ -717,15 +577,9 @@
       score = { blue: 0, orange: 0 };
       particles = [];
       resultText.textContent = 'Ready';
-
       if (timerId) clearInterval(timerId);
       timerId = null;
-
-      if (aiShotTimeout) {
-        clearTimeout(aiShotTimeout);
-        aiShotTimeout = null;
-      }
-
+      if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       powerFill.style.height = '0%';
       aimBadge.textContent = '당겨서 조준';
       hideOverlay();
@@ -740,7 +594,7 @@
       resultText.textContent = 'Playing';
       resetTurnClock();
       playStartSound();
-
+      if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
         if (phase !== 'playing') return;
@@ -752,7 +606,6 @@
         updateHud();
         broadcastState({ timerOnly: true });
       }, 1000);
-
       updateHud();
       broadcastState();
     }
@@ -778,25 +631,11 @@
 
     function getCanvasPos(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-      };
+      return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
     }
 
     function currentStatePayload(extra = {}) {
-      return {
-        type: 'state',
-        roomCode,
-        phase,
-        turn,
-        timeLeft,
-        hostTime: Number(timeSelect.value),
-        stones,
-        score,
-        playersConnected,
-        ...extra
-      };
+      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, ...extra };
     }
 
     function applyRemoteState(payload) {
@@ -807,85 +646,50 @@
       if (payload.stones) stones = payload.stones;
       if (payload.score) score = payload.score;
       playersConnected = payload.playersConnected || playersConnected;
+      if (payload.phase === 'ended') {
+        const myResult = myTeam === 'blue' ? payload.teamResultHost : payload.teamResultGuest;
+        resultText.textContent = myResult === 'draw' ? 'Draw' : (myResult === 'win' ? 'You Win' : 'You Lose');
+        playResultSoundForTeam(myTeam);
+        showOverlay(resultTitleForTeam(myTeam), `BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.`);
+      }
+      if (payload.playSfx === 'collision') playRemoteCollisionSound();
       updateHud();
     }
 
-    function sendMessage(data) {
-      if (conn && conn.open) conn.send(data);
-    }
-
-    function broadcastState(extra = {}) {
-      if (!isHost || !conn || !conn.open) return;
-      sendMessage(currentStatePayload(extra));
-    }
+    function sendMessage(data) { if (conn && conn.open) conn.send(data); }
+    function broadcastState(extra = {}) { if (!isHost || !conn || !conn.open) return; sendMessage(currentStatePayload(extra)); }
 
     function setConnectionHandlers(connection) {
       conn = connection;
-
       conn.on('open', () => {
         playersConnected = 2;
         updateHud();
         sendMessage({ type: 'hello', playerName, team: myTeam });
         if (isHost) broadcastState();
       });
-
       conn.on('data', (data) => {
         if (!data || typeof data !== 'object') return;
-        if (data.type === 'hello') {
-          playersConnected = 2;
-          updateHud();
-          return;
-        }
-        if (data.type === 'request_state' && isHost) {
-          broadcastState();
-          return;
-        }
-        if (data.type === 'state' && !isHost) {
-          applyRemoteState(data);
-          return;
-        }
+        if (data.type === 'hello') { playersConnected = 2; updateHud(); return; }
+        if (data.type === 'request_state' && isHost) { broadcastState(); return; }
+        if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
         if (data.type === 'launch' && isHost) {
           const { stoneId, vx, vy } = data;
-          stones = stones.map(s =>
-            s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s
-          );
+          stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
           broadcastState();
           return;
         }
-        if (data.type === 'start' && !isHost) {
-          startGame();
-          return;
-        }
-        if (data.type === 'reset') {
-          resetGame();
-          return;
-        }
-        if (data.type === 'rematch' && !isHost) {
-          startGame();
-          return;
-        }
+        if (data.type === 'start' && !isHost) { startGame(); return; }
+        if (data.type === 'reset') { resetGame(); return; }
+        if (data.type === 'rematch') { startGame(); return; }
       });
-
-      conn.on('close', () => {
-        conn = null;
-        playersConnected = 1;
-        updateHud();
-      });
-
-      conn.on('error', () => {
-        onlineStatusText.textContent = '연결 오류';
-      });
+      conn.on('close', () => { conn = null; playersConnected = 1; updateHud(); });
+      conn.on('error', () => { onlineStatusText.textContent = '연결 오류'; });
     }
 
     function teardownRoom() {
-      if (conn) { try { conn.close(); } catch {} }
-      if (peer) { try { peer.destroy(); } catch {} }
-      conn = null;
-      peer = null;
-      isHost = false;
-      myTeam = 'blue';
-      roomCode = '';
-      playersConnected = 1;
+      if (conn) try { conn.close(); } catch {}
+      if (peer) try { peer.destroy(); } catch {}
+      conn = null; peer = null; isHost = false; myTeam = 'blue'; roomCode = ''; playersConnected = 1;
       history.replaceState({}, '', window.location.pathname);
       updateHud();
     }
@@ -896,15 +700,7 @@
       roomCode = randomCode();
       isHost = true;
       myTeam = 'blue';
-
-      if (!window.Peer) {
-        onlineStatusText.textContent = '방 생성 실패';
-        updateHud();
-        return;
-      }
-
       peer = new Peer(PEER_PREFIX + roomCode);
-
       peer.on('open', () => {
         playersConnected = 1;
         onlineStatusText.textContent = '방 생성됨';
@@ -913,20 +709,8 @@
         url.searchParams.set('room', roomCode);
         history.replaceState({}, '', url);
       });
-
-      peer.on('connection', (connection) => {
-        if (conn && conn.open) {
-          connection.close();
-          return;
-        }
-        setConnectionHandlers(connection);
-      });
-
-      peer.on('error', (e) => {
-        onlineStatusText.textContent = '방 생성 실패';
-        console.error(e);
-      });
-
+      peer.on('connection', (connection) => { if (conn && conn.open) { connection.close(); return; } setConnectionHandlers(connection); });
+      peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; });
       updateHud();
     }
 
@@ -936,15 +720,7 @@
       roomCode = code.toUpperCase();
       isHost = false;
       myTeam = 'orange';
-
-      if (!window.Peer) {
-        onlineStatusText.textContent = '참가 실패';
-        updateHud();
-        return;
-      }
-
       peer = new Peer();
-
       peer.on('open', () => {
         const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
         setConnectionHandlers(connection);
@@ -953,12 +729,7 @@
           sendMessage({ type: 'request_state', playerName });
         });
       });
-
-      peer.on('error', (e) => {
-        onlineStatusText.textContent = '참가 실패';
-        console.error(e);
-      });
-
+      peer.on('error', () => { onlineStatusText.textContent = '참가 실패'; });
       const url = new URL(window.location.href);
       url.searchParams.set('room', roomCode);
       history.replaceState({}, '', url);
@@ -975,31 +746,18 @@
     function copyInviteLink() {
       const link = makeInviteLink();
       if (!link) return;
-      navigator.clipboard?.writeText(link).then(() => {
-        onlineStatusText.textContent = '초대 링크 복사됨';
-      }).catch(() => {
-        inviteLinkBox.textContent = link;
-      });
+      navigator.clipboard?.writeText(link).then(() => { onlineStatusText.textContent = '초대 링크 복사됨'; }).catch(() => { inviteLinkBox.textContent = link; });
     }
 
     function shareInviteLink() {
       const link = makeInviteLink();
       if (!link) return;
-      if (navigator.share) {
-        navigator.share({
-          title: 'Mini Curling Invite',
-          text: '같이 미니 컬링 한 판 해요!',
-          url: link
-        }).catch(() => {});
-      } else {
-        copyInviteLink();
-      }
+      if (navigator.share) navigator.share({ title: 'Mini Curling Invite', text: '같이 미니 컬링 한 판 해요!', url: link }).catch(() => {});
+      else copyInviteLink();
     }
 
     function launchStone(stoneId, vx, vy) {
-      stones = stones.map(s =>
-        s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s
-      );
+      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
     }
@@ -1019,8 +777,7 @@
       const p = getCanvasPos(e.clientX, e.clientY);
       drag.currentX = p.x;
       drag.currentY = p.y;
-      const dx = drag.currentX - drag.startX;
-      const dy = drag.currentY - drag.startY;
+      const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY;
       const len = Math.hypot(dx, dy);
       const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100);
       powerFill.style.height = `${powerPct}%`;
@@ -1029,18 +786,14 @@
 
     function releaseDrag() {
       if (!drag) return;
-      const dx = drag.currentX - drag.startX;
-      const dy = drag.currentY - drag.startY;
-      const len = Math.hypot(dx, dy);
+      const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY, len = Math.hypot(dx, dy);
       const stoneId = drag.stoneId;
       drag = null;
       powerFill.style.height = '0%';
       aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
       if (len < 8) return;
       const power = Math.min(MAX_POWER, len / 22);
-      const vx = (dx / len) * power;
-      const vy = (dy / len) * power;
-      launchStone(stoneId, vx, vy);
+      launchStone(stoneId, (dx / len) * power, (dy / len) * power);
     }
 
     canvas.addEventListener('pointerup', releaseDrag);
@@ -1049,158 +802,52 @@
 
     function drawBoard() {
       const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75);
-      grd.addColorStop(0, '#b55d27');
-      grd.addColorStop(0.58, '#93461c');
-      grd.addColorStop(1, '#5b2c14');
-      ctx.fillStyle = '#2b140b';
-      ctx.fillRect(0, 0, BOARD_W, BOARD_H);
-
-      const outer = octagonPoints();
-      const inner = octagonPoints(OCTAGON_INSET - 16);
-
-      const makePath = (pts) => {
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.closePath();
-      };
-
-      makePath(outer);
-      ctx.strokeStyle = '#d89a60';
-      ctx.lineWidth = 14;
-      ctx.stroke();
-
-      makePath(inner);
-      ctx.fillStyle = grd;
-      ctx.fill();
-      ctx.strokeStyle = '#6b3418';
-      ctx.lineWidth = 10;
-      ctx.stroke();
-
-      ctx.save();
-      makePath(inner);
-      ctx.clip();
-
+      grd.addColorStop(0, '#b55d27'); grd.addColorStop(0.58, '#93461c'); grd.addColorStop(1, '#5b2c14');
+      ctx.fillStyle = '#2b140b'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+      const outer = octagonPoints(), inner = octagonPoints(OCTAGON_INSET - 16);
+      const makePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
+      makePath(outer); ctx.strokeStyle = '#d89a60'; ctx.lineWidth = 14; ctx.stroke();
+      makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#6b3418'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.save(); makePath(inner); ctx.clip();
       const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220);
-      shine.addColorStop(0, 'rgba(255,255,255,0.25)');
-      shine.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = shine;
-      ctx.beginPath();
-      ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(251,191,36,0.22)';
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(59,130,246,0.24)';
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(239,68,68,0.30)';
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = 'rgba(17,24,39,0.95)';
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.font = 'bold 18px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
-      ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
-      ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
-
-      ctx.beginPath();
-      ctx.moveTo(CENTER_X - 56, CENTER_Y);
-      ctx.lineTo(CENTER_X + 56, CENTER_Y);
-      ctx.moveTo(CENTER_X, CENTER_Y - 56);
-      ctx.lineTo(CENTER_X, CENTER_Y + 56);
-      ctx.stroke();
-
+      shine.addColorStop(0, 'rgba(255,255,255,0.25)'); shine.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(251,191,36,0.22)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(59,130,246,0.24)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(239,68,68,0.30)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(17,24,39,0.95)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18); ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18); ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
+      ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
       if (drag) {
-        ctx.strokeStyle = 'rgba(255,255,255,.95)';
-        ctx.lineWidth = 7;
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        ctx.moveTo(drag.startX, drag.startY);
-        ctx.lineTo(drag.currentX, drag.currentY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
       }
-
       for (const s of stones) {
         if (s.out) continue;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2);
-        ctx.fillStyle = COLORS[s.team];
-        ctx.fill();
-
-        ctx.lineWidth = s.active ? 5 : 2;
-        ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)';
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.32)';
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
+        ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke();
+        ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
       }
-
-      for (const p of particles) {
-        ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.fill();
-      }
-
-      ctx.globalAlpha = 1;
-      ctx.restore();
+      for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life / p.maxLife); ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill(); }
+      ctx.globalAlpha = 1; ctx.restore();
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, BOARD_W, BOARD_H);
-      drawBoard();
-    }
+    function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
 
     function performAIShot() {
       if (conn || phase !== 'playing' || turn !== 'orange') return;
       const stone = activeStoneForTurn();
       if (!stone || !allStopped()) return;
-
       const targetX = CENTER_X + (Math.random() - 0.5) * 90;
       const targetY = CENTER_Y + (Math.random() - 0.5) * 90;
       const dx = targetX - stone.x;
       const dy = targetY - stone.y;
       const len = Math.hypot(dx, dy) || 1;
       const desired = Math.min(MAX_POWER * 0.92, Math.max(2.6, len / 42));
-
       launchStone(stone.id, (dx / len) * desired, (dy / len) * desired);
     }
 
@@ -1208,29 +855,21 @@
       if (phase === 'playing' && (!conn || isHost)) {
         pairContacts = new Set();
         wallContacts = new Set();
-
         stones = stones.map(s => {
           if (s.out) return s;
           const next = { ...s };
-          next.x += next.vx;
-          next.y += next.vy;
-          next.vx *= FRICTION;
-          next.vy *= FRICTION;
+          next.x += next.vx; next.y += next.vy; next.vx *= FRICTION; next.vy *= FRICTION;
           if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
           if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
           return clampInTable(next);
         });
-
         resolveStoneCollisions();
-
         const stopped = allStopped();
-        const hasActive = stones.some(s => s.active && !s.launched && !s.out);
-
-        if (stopped && !hasActive) {
+        const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
+        if (stopped && !hasActiveUnlaunched) {
           if (countRemaining('blue') === 0 && countRemaining('orange') === 0) endGame();
           else advanceTurn(false);
         }
-
         if (conn && isHost) broadcastState();
         prevPairContacts = pairContacts;
         prevWallContacts = wallContacts;
@@ -1262,36 +901,12 @@
 
     createRoomBtn.addEventListener('click', createRoom);
     joinRoomBtn.addEventListener('click', tryJoinFromInput);
-    joinCodeInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        tryJoinFromInput();
-      }
-    });
-
+    joinCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryJoinFromInput(); } });
     copyInviteBtn.addEventListener('click', copyInviteLink);
     shareInviteBtn.addEventListener('click', shareInviteLink);
-    leaveRoomBtn.addEventListener('click', () => {
-      teardownRoom();
-      resetGame();
-    });
-
-    startBtn.addEventListener('click', () => {
-      unlockAudio();
-      if (conn && !isHost) return;
-      startGame();
-      if (conn && isHost) sendMessage({ type: 'start' });
-    });
-
-    resetBtn.addEventListener('click', () => {
-      if (aiShotTimeout) {
-        clearTimeout(aiShotTimeout);
-        aiShotTimeout = null;
-      }
-      resetGame();
-      if (conn) sendMessage({ type: 'reset' });
-    });
-
+    leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
+    startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
+    resetBtn.addEventListener('click', () => { if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; } resetGame(); if (conn) sendMessage({ type: 'reset' }); });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
       hideOverlay();
@@ -1308,16 +923,8 @@
       }
       startGame();
     });
-
     closeOverlayBtn.addEventListener('click', hideOverlay);
-
-    timeSelect.addEventListener('change', () => {
-      if (phase !== 'playing') {
-        resetTurnClock();
-        updateHud();
-        broadcastState();
-      }
-    });
+    timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
 
     function tryJoinFromInput() {
       const code = (joinCodeInput.value || '').trim().toUpperCase();
@@ -1335,6 +942,7 @@
     }
 
     setupCollisionAudio();
+    stones = makeInitialStones();
     renderLeaderboard();
     initFromQuery();
     resetGame();
