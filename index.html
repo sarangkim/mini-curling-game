@@ -3,61 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Mini Curling Mobile Web Online v3</title>
+  <title>Mini Curling Mobile Web Online v4</title>
   <style>
     :root {
       --bg: #020617;
-      --panel: rgba(15, 23, 42, 0.9);
+      --panel: rgba(15, 23, 42, 0.96);
       --line: #1e293b;
       --text: #ffffff;
       --muted: #cbd5e1;
       --blue: #2563eb;
       --orange: #f59e0b;
+      --good: #16a34a;
+      --warn: #b45309;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    html, body { margin: 0; background: radial-gradient(circle at top, #0f172a, #020617 62%); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
     body { min-height: 100svh; }
-    .app { max-width: 980px; margin: 0 auto; padding: 14px; }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 14px; box-shadow: 0 18px 48px rgba(0,0,0,0.28); }
-    h1 { margin: 0 0 6px; font-size: 24px; }
-    .sub { color: var(--muted); font-size: 14px; line-height: 1.5; }
-    .online-grid, .stats, .bottom-grid, .rules { display: grid; gap: 10px; }
-    .online-grid, .bottom-grid { grid-template-columns: 1.1fr .9fr; margin-top: 12px; }
-    .stats { grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
-    .card { background: #020617; border: 1px solid var(--line); border-radius: 18px; padding: 12px; }
+    .app { max-width: 860px; margin: 0 auto; padding: 14px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      padding: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.28);
+      backdrop-filter: blur(12px);
+    }
+    h1, h2, h3 { margin: 0; }
+    h1 { font-size: 26px; }
+    .sub { color: var(--muted); font-size: 14px; line-height: 1.55; margin-top: 6px; }
+    .hero { padding: 12px 6px 4px; }
+    .stack { display: grid; gap: 12px; }
+    .grid-2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+    .card { background: #020617; border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
     .label { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
-    .value { font-size: 20px; font-weight: bold; }
-    .small { font-size: 13px; color: var(--muted); line-height: 1.5; }
-    .row { display:flex; gap:10px; align-items:center; }
+    .value { font-size: 20px; font-weight: 700; }
+    .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row.wrap { flex-wrap: wrap; }
     button, select, input {
-      width: 100%; height: 48px; border-radius: 16px; border: 1px solid #334155;
+      width: 100%; min-height: 48px; border-radius: 16px; border: 1px solid #334155;
       background: #0f172a; color: white; font-size: 16px; font-weight: 700; padding: 0 14px;
     }
-    button.primary { background: #2563eb; border-color: #2563eb; }
-    button.secondary { background: #0f172a; }
+    button.primary { background: var(--blue); border-color: var(--blue); }
     button.good { background: #166534; border-color: #166534; }
     button.warn { background: #92400e; border-color: #92400e; }
+    button.ghost { background: #111827; }
     button:disabled, select:disabled, input:disabled { opacity: .55; }
-    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 999px; background: #111827; border: 1px solid #374151; font-size: 12px; color: var(--muted); }
-    .status-line { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .link-box { min-height: 46px; padding: 10px 12px; border-radius: 14px; background: #111827; border: 1px solid #374151; font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5; }
-    .board-wrap { position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28); box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
+      background: #111827; border: 1px solid #374151; color: #dbe4ef; font-size: 12px;
+    }
+    .link-box {
+      min-height: 46px; padding: 12px; border-radius: 14px; background: #111827; border: 1px solid #374151;
+      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5;
+    }
+    .screen-title { font-size: 24px; margin-bottom: 6px; }
+    .board-wrap {
+      position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28);
+      box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none;
+    }
     canvas { display: block; width: 100%; height: auto; }
-    .turn-dot { width: 14px; height: 14px; border-radius: 999px; display:inline-block; vertical-align:middle; margin-right:8px; }
-    .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(to bottom, rgba(2,6,23,.25), rgba(2,6,23,.55)); opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+    .turn-dot { width: 14px; height: 14px; border-radius: 999px; display: inline-block; vertical-align: middle; margin-right: 8px; }
+    .overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(to bottom, rgba(2,6,23,.22), rgba(2,6,23,.62));
+      opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    }
     .overlay.show { opacity: 1; pointer-events: auto; }
-    .overlay-card { min-width: min(82%, 380px); background: rgba(15,23,42,.92); border: 1px solid #334155; border-radius: 24px; padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
-    .overlay-title { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .overlay-card {
+      min-width: min(84%, 390px); background: rgba(15,23,42,.95); border: 1px solid #334155; border-radius: 24px;
+      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35);
+    }
+    .overlay-title { font-size: 30px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
-    .power-wrap { position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden; }
-    .power-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%; background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%); transition: height .05s linear; }
-    .aim-badge { position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px; background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0; }
+    .power-wrap {
+      position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
+      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden;
+    }
+    .power-fill {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+      background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%); transition: height .05s linear;
+    }
+    .aim-badge {
+      position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px;
+      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0;
+    }
     .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
-    .leader-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041; }
-    .rank-badge { width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #172033; color: white; }
+    .leader-row {
+      display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
+    }
+    .rank-badge {
+      width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; background: #172033; color: white;
+    }
+    .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
+    .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
     @media (max-width: 760px) {
-      .online-grid, .bottom-grid, .stats { grid-template-columns: 1fr; }
-      h1 { font-size: 22px; }
+      .grid-2, .stats, .footer-actions { grid-template-columns: 1fr; }
+      h1 { font-size: 23px; }
+      .screen-title { font-size: 22px; }
       .value { font-size: 18px; }
     }
   </style>
@@ -65,37 +112,68 @@
 </head>
 <body>
   <div class="app">
-    <div class="panel">
-      <h1>Mini Curling Mobile Web Online v3</h1>
-      <div class="sub">턴 제한 시간 방식의 온라인 2인 미니 컬링입니다. 온라인 상대가 없으면 컴퓨터와 대결합니다.</div>
+    <section id="entryScreen" class="screen active">
+      <div class="panel stack">
+        <div class="hero">
+          <h1>Mini Curling</h1>
+          <div class="sub">앱처럼 먼저 입장 화면에서 방을 만들거나 참가하세요. 연결되면 자동으로 대기실/게임 화면으로 넘어갑니다.</div>
+        </div>
 
-      <div class="online-grid">
-        <div class="card">
-          <div class="label">Online match</div>
-          <div class="row" style="margin-bottom:10px;">
+        <div class="card stack">
+          <div class="label">내 플레이어 이름</div>
+          <div class="row">
             <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
-            <button id="saveNameBtn" class="secondary">저장</button>
+            <button id="saveNameBtn" class="ghost">저장</button>
           </div>
-          <div class="row" style="margin-bottom:10px;">
+        </div>
+
+        <div class="grid-2">
+          <div class="card stack">
+            <div class="label">온라인 방 만들기</div>
+            <div class="small">호스트가 되며 파랑 팀입니다. 방을 만들면 대기실로 이동합니다.</div>
             <button id="createRoomBtn" class="primary">방 만들기</button>
-            <input id="joinCodeInput" placeholder="방 코드 입력" maxlength="12" />
-            <button id="joinRoomBtn" class="good">참가</button>
           </div>
-          <div class="row" style="margin-bottom:10px;">
-            <button id="copyInviteBtn" class="secondary">초대 링크 복사</button>
-            <button id="shareInviteBtn" class="secondary">공유</button>
-            <button id="leaveRoomBtn" class="warn">방 나가기</button>
+          <div class="card stack">
+            <div class="label">방 코드로 참가하기</div>
+            <div class="row">
+              <input id="joinCodeInput" placeholder="방 코드 입력" maxlength="12" />
+              <button id="joinRoomBtn" class="good">참가</button>
+            </div>
+            <div class="small">초대 링크로 들어오면 방 코드가 자동 입력되고 자동 참가합니다.</div>
           </div>
-          <div class="link-box" id="inviteLinkBox">방을 만들면 초대 링크가 여기에 표시됩니다.</div>
-          <div class="status-line">
-            <span class="pill">상태: <strong id="onlineStatusText">오프라인 로컬 모드</strong></span>
+        </div>
+
+        <div class="card stack">
+          <div class="label">혼자 하기</div>
+          <div class="small">온라인 상대가 없으면 CPU와 바로 대결합니다.</div>
+          <button id="soloPlayBtn" class="good">CPU와 시작</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="lobbyScreen" class="screen">
+      <div class="panel stack">
+        <div>
+          <div class="screen-title">Room Lobby</div>
+          <div class="sub">상대를 초대하고 연결되면 시작하세요.</div>
+        </div>
+
+        <div class="card stack">
+          <div class="row wrap">
+            <span class="pill">상태: <strong id="onlineStatusText">방 대기 중</strong></span>
             <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
             <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
+            <span class="pill">인원: <strong id="playersText">1 / 2</strong></span>
           </div>
-          <div class="small" style="margin-top:10px;">호스트는 파랑, 참가자는 주황입니다. 초대 링크나 방 코드로 참가할 수 있습니다.</div>
+          <div class="link-box" id="inviteLinkBox">방을 만들면 초대 링크가 여기에 표시됩니다.</div>
+          <div class="row">
+            <button id="copyInviteBtn" class="ghost">초대 링크 복사</button>
+            <button id="shareInviteBtn" class="ghost">공유</button>
+          </div>
         </div>
-        <div class="card">
-          <div class="label">Turn setup</div>
+
+        <div class="card stack">
+          <div class="label">턴 제한 시간</div>
           <div class="row">
             <select id="timeSelect">
               <option value="10">10 seconds</option>
@@ -105,61 +183,69 @@
               <option value="50">50 seconds</option>
               <option value="60">60 seconds</option>
             </select>
-            <button id="startBtn" class="primary">Start Match</button>
-            <button id="resetBtn" class="secondary">Reset</button>
           </div>
-          <div class="small" style="margin-top:10px;">각 턴 제한 시간입니다. 턴이 바뀔 때마다 시간이 다시 시작됩니다.</div>
+          <div class="small">각 턴 제한 시간입니다. 턴이 바뀔 때마다 시간이 다시 시작됩니다.</div>
+        </div>
+
+        <div class="footer-actions">
+          <button id="startBtn" class="primary">Start Match</button>
+          <button id="leaveRoomBtn" class="warn">나가기</button>
         </div>
       </div>
+    </section>
 
-      <div class="stats">
-        <div class="card"><div class="label">Turn</div><div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div></div>
-        <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
-        <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div></div>
-        <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">VS CPU</div></div>
-      </div>
+    <section id="gameScreen" class="screen">
+      <div class="panel">
+        <div class="row wrap" style="justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="screen-title">Mini Curling Match</div>
+            <div class="sub" id="gameSubText">게임이 진행 중입니다.</div>
+          </div>
+          <button id="backToLobbyBtn" class="ghost" style="max-width:150px;">Lobby</button>
+        </div>
 
-      <div class="board-wrap">
-        <canvas id="board" width="720" height="960"></canvas>
-        <div class="aim-badge" id="aimBadge">당겨서 조준</div>
-        <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
-        <div class="overlay" id="resultOverlay">
-          <div class="overlay-card">
-            <div class="overlay-title" id="overlayTitle">Ready</div>
-            <div class="overlay-sub" id="overlaySub">방을 만들거나 참가한 뒤 시작하세요.</div>
-            <div class="row">
-              <button id="rematchBtn" class="primary">Rematch</button>
-              <button id="closeOverlayBtn" class="secondary">Close</button>
+        <div class="stats">
+          <div class="card"><div class="label">Turn</div><div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div></div>
+          <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
+          <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div></div>
+          <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">VS CPU</div></div>
+        </div>
+
+        <div class="board-wrap">
+          <canvas id="board" width="720" height="960"></canvas>
+          <div class="aim-badge" id="aimBadge">당겨서 조준</div>
+          <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
+          <div class="overlay" id="resultOverlay">
+            <div class="overlay-card">
+              <div class="overlay-title" id="overlayTitle">Ready</div>
+              <div class="overlay-sub" id="overlaySub">게임을 시작하세요.</div>
+              <div class="row">
+                <button id="rematchBtn" class="primary">Rematch</button>
+                <button id="closeOverlayBtn" class="ghost">Close</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="stats">
-        <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">4</div></div>
-        <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">4</div></div>
-        <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
-        <div class="card"><div class="label">Players</div><div class="value" id="playersText">1 / 2</div></div>
-      </div>
+        <div class="stats">
+          <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">4</div></div>
+          <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">4</div></div>
+          <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
+          <div class="card"><div class="label">Players</div><div class="value" id="gamePlayersText">1 / 2</div></div>
+        </div>
 
-      <div class="bottom-grid">
-        <div class="card">
-          <div class="label">How to play</div>
-          <div class="rules">
-            <div>• 파랑과 주황이 번갈아 컬링 1개씩 움직입니다.</div>
-            <div>• 턴 시간 안에 움직이지 못하면 그 컬링은 기권 처리됩니다.</div>
-            <div>• 안쪽부터 30점, 20점, 10점입니다.</div>
-            <div>• 충돌음은 curling_sound.mp3를 사용합니다.</div>
-            <div>• 온라인 상대가 없으면 컴퓨터와 대결합니다.</div>
+        <div class="grid-2" style="margin-top:12px;">
+          <div class="card">
+            <div class="label">How to play</div>
+            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다.</div>
+          </div>
+          <div class="card">
+            <div class="label">Leaderboard (이 기기 저장)</div>
+            <div class="leaderboard" id="leaderboard"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="label">Leaderboard (이 기기 저장)</div>
-          <div class="small">이 랭킹은 현재 브라우저 localStorage에 저장됩니다.</div>
-          <div class="leaderboard" id="leaderboard"></div>
-        </div>
       </div>
-    </div>
+    </section>
   </div>
 
   <script>
@@ -172,11 +258,15 @@
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
 
     const $ = (id) => document.getElementById(id);
+    const screens = {
+      entry: $('entryScreen'),
+      lobby: $('lobbyScreen'),
+      game: $('gameScreen')
+    };
     const canvas = $('board');
     const ctx = canvas.getContext('2d');
     const timeSelect = $('timeSelect');
     const startBtn = $('startBtn');
-    const resetBtn = $('resetBtn');
     const rematchBtn = $('rematchBtn');
     const closeOverlayBtn = $('closeOverlayBtn');
     const createRoomBtn = $('createRoomBtn');
@@ -185,6 +275,8 @@
     const shareInviteBtn = $('shareInviteBtn');
     const leaveRoomBtn = $('leaveRoomBtn');
     const saveNameBtn = $('saveNameBtn');
+    const soloPlayBtn = $('soloPlayBtn');
+    const backToLobbyBtn = $('backToLobbyBtn');
     const playerNameInput = $('playerNameInput');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
@@ -199,6 +291,7 @@
     const myTeamText = $('myTeamText');
     const roomCodeText = $('roomCodeText');
     const playersText = $('playersText');
+    const gamePlayersText = $('gamePlayersText');
     const roomModeText = $('roomModeText');
     const leaderboardEl = $('leaderboard');
     const powerFill = $('powerFill');
@@ -206,7 +299,9 @@
     const resultOverlay = $('resultOverlay');
     const overlayTitle = $('overlayTitle');
     const overlaySub = $('overlaySub');
+    const gameSubText = $('gameSubText');
 
+    let currentScreen = 'entry';
     let phase = 'lobby';
     let turn = 'blue';
     let timeLeft = 20;
@@ -231,6 +326,12 @@
     let stones = [];
     let score = { blue: 0, orange: 0 };
     playerNameInput.value = playerName;
+
+    function showScreen(name) {
+      currentScreen = name;
+      Object.values(screens).forEach(el => el.classList.remove('active'));
+      screens[name].classList.add('active');
+    }
 
     function ensureAudio() {
       if (audioCtx) return audioCtx;
@@ -259,11 +360,14 @@
       }
     }
 
-    function playRemoteCollisionSound() {
+    function playCollisionSound(intensity = 1) {
+      const now = performance.now();
       if (!collisionAudio) return;
+      if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
+      lastSoundAt = now;
       try {
         const sfx = collisionAudio.cloneNode();
-        sfx.volume = 0.45;
+        sfx.volume = Math.max(0.18, Math.min(0.95, intensity * 0.9));
         sfx.currentTime = 0;
         sfx.play().catch(() => {});
       } catch {}
@@ -285,50 +389,30 @@
       osc.stop(startAt + duration + 0.02);
     }
 
-    function playCollisionSound(intensity = 1) {
-      const now = performance.now();
-      if (!collisionAudio) return;
-      if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
-      lastSoundAt = now;
-      try {
-        const sfx = collisionAudio.cloneNode();
-        sfx.volume = Math.max(0.15, Math.min(0.9, intensity * 0.85));
-        sfx.currentTime = 0;
-        sfx.play().catch(() => {});
-      } catch {}
-    }
-
     function playStartSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.12);
       tone(523.25, t + 0.12, 0.12, 'triangle', 0.14);
       tone(659.25, t + 0.24, 0.18, 'triangle', 0.16);
     }
-
     function playWinSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(523.25, t, 0.12, 'triangle', 0.12);
       tone(659.25, t + 0.11, 0.12, 'triangle', 0.13);
       tone(783.99, t + 0.22, 0.14, 'triangle', 0.14);
       tone(1046.5, t + 0.34, 0.28, 'triangle', 0.16);
     }
-
     function playDrawSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.14, 'sine', 0.1);
       tone(349.23, t + 0.16, 0.14, 'sine', 0.095);
       tone(392, t + 0.34, 0.2, 'sine', 0.09);
     }
-
     function playLoseSound() {
-      const ctx = ensureAudio();
-      if (!ctx) return;
+      const ctx = ensureAudio(); if (!ctx) return;
       const t = ctx.currentTime + 0.02;
       tone(392, t, 0.12, 'triangle', 0.11);
       tone(329.63, t + 0.13, 0.14, 'triangle', 0.1);
@@ -336,10 +420,7 @@
       tone(196, t + 0.5, 0.28, 'sine', 0.08);
     }
 
-    function vibrate(ms = 18) {
-      if (navigator.vibrate) navigator.vibrate(ms);
-    }
-
+    function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
     function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
     function octagonPoints(inset = OCTAGON_INSET) {
@@ -377,7 +458,6 @@
 
     function countRemaining(team) { return stones.filter(s => s.team === team && !s.launched && !s.out).length; }
     function allStopped() { return stones.filter(s => !s.out).every(s => Math.abs(s.vx) < MIN_SPEED && Math.abs(s.vy) < MIN_SPEED); }
-
     function computeScores() {
       score = {
         blue: stones.filter(s => s.team === 'blue').reduce((sum, stone) => sum + stoneScore(stone), 0),
@@ -435,8 +515,7 @@
           const wallKey = `${s.id}:${i}`;
           wallContacts.add(wallKey);
           const push = STONE_R - dist;
-          s.x += nx * push;
-          s.y += ny * push;
+          s.x += nx * push; s.y += ny * push;
           const vn = s.vx * nx + s.vy * ny;
           if (vn < 0) {
             const impact = Math.min(1, Math.abs(vn) / 4.5);
@@ -444,6 +523,7 @@
               playCollisionSound(impact * 0.8);
               vibrate(10);
               spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
+              if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.75)) });
             }
             s.vx = s.vx - (1 + BOUNCE) * vn * nx;
             s.vy = s.vy - (1 + BOUNCE) * vn * ny;
@@ -471,6 +551,7 @@
             playCollisionSound(impact);
             vibrate(14);
             spawnParticles((a.x + b.x) / 2, (a.y + b.y) / 2, 'rgba(255,255,255,0.9)', impact);
+            if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.9)) });
           }
           a.vx += -impulse * nx; a.vy += -impulse * ny; b.vx += impulse * nx; b.vy += impulse * ny;
         }
@@ -535,6 +616,19 @@
       else playLoseSound();
     }
 
+    function enterGameScreen(reasonText = '게임이 진행 중입니다.') {
+      gameSubText.textContent = reasonText;
+      showScreen('game');
+    }
+
+    function enterLobbyScreen() {
+      showScreen('lobby');
+    }
+
+    function enterEntryScreen() {
+      showScreen('entry');
+    }
+
     function endGame() {
       computeScores();
       phase = 'ended';
@@ -594,6 +688,7 @@
       resultText.textContent = 'Playing';
       resetTurnClock();
       playStartSound();
+      enterGameScreen(conn ? '온라인 대전이 시작되었습니다.' : 'CPU와 대전이 시작되었습니다.');
       if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       if (timerId) clearInterval(timerId);
       timerId = setInterval(() => {
@@ -619,6 +714,7 @@
       blueRemain.textContent = countRemaining('blue');
       orangeRemain.textContent = countRemaining('orange');
       playersText.textContent = `${playersConnected} / 2`;
+      gamePlayersText.textContent = `${playersConnected} / 2`;
       onlineStatusText.textContent = conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드');
       myTeamText.textContent = myTeam.toUpperCase();
       roomCodeText.textContent = roomCode || '-';
@@ -647,12 +743,12 @@
       if (payload.score) score = payload.score;
       playersConnected = payload.playersConnected || playersConnected;
       if (payload.phase === 'ended') {
+        enterGameScreen('온라인 대전 결과입니다.');
         const myResult = myTeam === 'blue' ? payload.teamResultHost : payload.teamResultGuest;
         resultText.textContent = myResult === 'draw' ? 'Draw' : (myResult === 'win' ? 'You Win' : 'You Lose');
         playResultSoundForTeam(myTeam);
         showOverlay(resultTitleForTeam(myTeam), `BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.`);
       }
-      if (payload.playSfx === 'collision') playRemoteCollisionSound();
       updateHud();
     }
 
@@ -672,6 +768,7 @@
         if (data.type === 'hello') { playersConnected = 2; updateHud(); return; }
         if (data.type === 'request_state' && isHost) { broadcastState(); return; }
         if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
+        if (data.type === 'sfx' && data.kind === 'collision') { playCollisionSound(data.volume || 0.5); return; }
         if (data.type === 'launch' && isHost) {
           const { stoneId, vx, vy } = data;
           stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
@@ -682,7 +779,12 @@
         if (data.type === 'reset') { resetGame(); return; }
         if (data.type === 'rematch') { startGame(); return; }
       });
-      conn.on('close', () => { conn = null; playersConnected = 1; updateHud(); });
+      conn.on('close', () => {
+        conn = null;
+        playersConnected = 1;
+        updateHud();
+        if (currentScreen !== 'entry') enterLobbyScreen();
+      });
       conn.on('error', () => { onlineStatusText.textContent = '연결 오류'; });
     }
 
@@ -708,8 +810,12 @@
         const url = new URL(window.location.href);
         url.searchParams.set('room', roomCode);
         history.replaceState({}, '', url);
+        enterLobbyScreen();
       });
-      peer.on('connection', (connection) => { if (conn && conn.open) { connection.close(); return; } setConnectionHandlers(connection); });
+      peer.on('connection', (connection) => {
+        if (conn && conn.open) { connection.close(); return; }
+        setConnectionHandlers(connection);
+      });
       peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; });
       updateHud();
     }
@@ -727,6 +833,7 @@
         connection.on('open', () => {
           onlineStatusText.textContent = '방 참가 완료';
           sendMessage({ type: 'request_state', playerName });
+          enterLobbyScreen();
         });
       });
       peer.on('error', () => { onlineStatusText.textContent = '참가 실패'; });
@@ -734,13 +841,6 @@
       url.searchParams.set('room', roomCode);
       history.replaceState({}, '', url);
       updateHud();
-    }
-
-    function tryJoinFromInput() {
-      const code = (joinCodeInput.value || '').trim().toUpperCase();
-      if (!code) return;
-      joinCodeInput.value = code;
-      joinRoom(code);
     }
 
     function copyInviteLink() {
@@ -874,19 +974,16 @@
         prevPairContacts = pairContacts;
         prevWallContacts = wallContacts;
       }
-
       if (!conn && phase === 'playing' && turn === 'orange' && allStopped() && !aiShotTimeout) {
         aiShotTimeout = setTimeout(() => {
           aiShotTimeout = null;
           performAIShot();
         }, AI_SHOT_DELAY_MS);
       }
-
       if ((conn || phase !== 'playing' || turn !== 'orange' || !allStopped()) && aiShotTimeout) {
         clearTimeout(aiShotTimeout);
         aiShotTimeout = null;
       }
-
       updateParticles();
       updateHud();
       draw();
@@ -900,13 +997,34 @@
     });
 
     createRoomBtn.addEventListener('click', createRoom);
-    joinRoomBtn.addEventListener('click', tryJoinFromInput);
-    joinCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryJoinFromInput(); } });
+    joinRoomBtn.addEventListener('click', () => {
+      unlockAudio();
+      tryJoinFromInput();
+    });
+    joinCodeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); unlockAudio(); tryJoinFromInput(); } });
     copyInviteBtn.addEventListener('click', copyInviteLink);
     shareInviteBtn.addEventListener('click', shareInviteLink);
-    leaveRoomBtn.addEventListener('click', () => { teardownRoom(); resetGame(); });
-    startBtn.addEventListener('click', () => { unlockAudio(); if (conn && !isHost) return; startGame(); if (conn && isHost) sendMessage({ type: 'start' }); });
-    resetBtn.addEventListener('click', () => { if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; } resetGame(); if (conn) sendMessage({ type: 'reset' }); });
+    leaveRoomBtn.addEventListener('click', () => {
+      teardownRoom();
+      resetGame();
+      enterEntryScreen();
+    });
+    soloPlayBtn.addEventListener('click', () => {
+      unlockAudio();
+      teardownRoom();
+      enterGameScreen('CPU와 대전이 시작되었습니다.');
+      startGame();
+    });
+    backToLobbyBtn.addEventListener('click', () => {
+      if (roomCode) enterLobbyScreen();
+      else enterEntryScreen();
+    });
+    startBtn.addEventListener('click', () => {
+      unlockAudio();
+      if (conn && !isHost) return;
+      startGame();
+      if (conn && isHost) sendMessage({ type: 'start' });
+    });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
       hideOverlay();
@@ -937,15 +1055,18 @@
       const room = new URLSearchParams(window.location.search).get('room');
       if (room) {
         joinCodeInput.value = room.toUpperCase();
-        setTimeout(() => tryJoinFromInput(), 200);
+        setTimeout(() => {
+          unlockAudio();
+          tryJoinFromInput();
+        }, 250);
       }
     }
 
     setupCollisionAudio();
     stones = makeInitialStones();
     renderLeaderboard();
-    initFromQuery();
     resetGame();
+    initFromQuery();
     requestAnimationFrame(step);
   </script>
 </body>
