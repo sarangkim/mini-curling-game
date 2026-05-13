@@ -118,6 +118,8 @@
       white-space: nowrap;
     }
     .title-row.locked { opacity: .72; }
+    .score-breakdown { margin-top: 8px; }
+    .score-line { font-size: 12px; color: var(--muted); line-height: 1.45; }
     .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
     .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
     @media (max-width: 760px) {
@@ -228,7 +230,7 @@
         <div class="stats">
           <div class="card"><div class="label">Turn</div><div class="value"><span id="turnDot" class="turn-dot"></span><span id="turnText">BLUE</span></div></div>
           <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
-          <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div></div>
+          <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div><div class="score-breakdown" id="scoreBreakdown"></div></div>
           <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">VS CPU</div></div>
         </div>
 
@@ -261,7 +263,7 @@
             <div class="progress-grid" id="dailyMissionList"></div>
           </div>
           <div class="card">
-            <div class="label">칭호</div>
+            <div class="label">기록 배지</div>
             <div class="progress-grid" id="titleList"></div>
           </div>
         </div>
@@ -303,13 +305,13 @@
       { id: 'online_match', name: '온라인 한 판', desc: '온라인 대전을 한 경기 완료하세요.', test: (s) => s.isOnline }
     ];
     const TITLE_DEFS = [
-      { id: 'first_win', name: '첫 승리', desc: '처음으로 경기에서 승리하기', test: (p) => p.wins >= 1 },
-      { id: 'center_hunter', name: '하우스 헌터', desc: '30점 링 누적 5개', test: (p) => p.centerHits >= 5 },
-      { id: 'big_scorer', name: '빅 엔드 메이커', desc: '60점 이상 경기 3회', test: (p) => p.bigScoreGames >= 3 },
-      { id: 'iron_guard', name: '철벽 가드', desc: '상대 0점 경기 2회', test: (p) => p.shutouts >= 2 },
-      { id: 'daily_grinder', name: '오늘도 컬링', desc: '오늘의 미션 10개 완료', test: (p) => p.missionsCompleted >= 10 },
-      { id: 'online_rival', name: '온라인 라이벌', desc: '온라인 경기 3회 완료', test: (p) => p.onlineGames >= 3 },
-      { id: 'veteran_skip', name: '베테랑 스킵', desc: '누적 20경기 완료', test: (p) => p.games >= 20 }
+      { id: 'first_win', name: '승리 1회 달성', desc: '경기에서 처음으로 승리하면 획득', test: (p) => p.wins >= 1 },
+      { id: 'center_hunter', name: '30점 링 5회 달성', desc: '내 돌이 30점 링에 누적 5번 들어가면 획득', test: (p) => p.centerHits >= 5 },
+      { id: 'big_scorer', name: '60점 경기 3회 달성', desc: '한 경기 60점 이상을 3번 기록하면 획득', test: (p) => p.bigScoreGames >= 3 },
+      { id: 'iron_guard', name: '상대 0점 2회 달성', desc: '상대를 0점으로 막은 경기를 2번 하면 획득', test: (p) => p.shutouts >= 2 },
+      { id: 'daily_grinder', name: '오늘의 미션 10회 달성', desc: '오늘의 미션을 누적 10개 완료하면 획득', test: (p) => p.missionsCompleted >= 10 },
+      { id: 'online_rival', name: '온라인 경기 3회 달성', desc: '온라인 경기를 3번 완료하면 획득', test: (p) => p.onlineGames >= 3 },
+      { id: 'veteran_skip', name: '총 경기 20회 달성', desc: '경기를 누적 20번 완료하면 획득', test: (p) => p.games >= 20 }
     ];
 
     const $ = (id) => document.getElementById(id);
@@ -335,6 +337,7 @@
     const turnText = $('turnText');
     const timeText = $('timeText');
     const scoreText = $('scoreText');
+    const scoreBreakdown = $('scoreBreakdown');
     const blueRemain = $('blueRemain');
     const orangeRemain = $('orangeRemain');
     const resultText = $('resultText');
@@ -544,6 +547,20 @@
         blue: stones.filter(s => s.team === 'blue').reduce((sum, stone) => sum + stoneScore(stone), 0),
         orange: stones.filter(s => s.team === 'orange').reduce((sum, stone) => sum + stoneScore(stone), 0)
       };
+    }
+
+    function scoreParts(team) {
+      return stones
+        .filter(s => s.team === team && !s.out)
+        .map(stoneScore)
+        .filter(points => points > 0)
+        .sort((a, b) => b - a);
+    }
+
+    function scoreBreakdownLine(team) {
+      const parts = scoreParts(team);
+      const label = team.toUpperCase();
+      return `${label} ${score[team]} = ${parts.length ? parts.join(' + ') : '득점 없음'}`;
     }
 
     function activateNextStone(team) {
@@ -829,10 +846,10 @@
       const rows = [
         `<div class="title-row unlocked">
           <div>
-            <div class="title-name">랭크 포인트 ${profile.rankPoints}</div>
-            <div class="small">경기와 오늘의 미션으로 누적됩니다.</div>
+            <div class="title-name">누적 포인트 ${profile.rankPoints}</div>
+            <div class="small">경기 완료와 오늘의 미션 보상으로 쌓입니다.</div>
           </div>
-          <div class="reward-badge">${profile.games}G</div>
+          <div class="reward-badge">${profile.games}경기</div>
         </div>`,
         ...visibleTitles.map(title => `
           <div class="title-row unlocked">
@@ -847,7 +864,7 @@
         rows.push(`
           <div class="title-row locked">
             <div>
-              <div class="title-name">다음 칭호: ${escapeHtml(lockedPreview.name)}</div>
+              <div class="title-name">다음 목표: ${escapeHtml(lockedPreview.name)}</div>
               <div class="small">${escapeHtml(lockedPreview.desc)}</div>
             </div>
             <div class="reward-badge">미획득</div>
@@ -1027,6 +1044,7 @@
       turnText.textContent = turn.toUpperCase();
       timeText.textContent = `${timeLeft}s`;
       scoreText.textContent = `${score.blue} : ${score.orange}`;
+      scoreBreakdown.innerHTML = `<div class="score-line">${scoreBreakdownLine('blue')}</div><div class="score-line">${scoreBreakdownLine('orange')}</div>`;
       blueRemain.textContent = countRemaining('blue');
       orangeRemain.textContent = countRemaining('orange');
       playersText.textContent = `${playersConnected} / 2`;
