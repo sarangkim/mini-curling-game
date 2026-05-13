@@ -105,6 +105,19 @@
       width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
       font-weight: 800; background: #172033; color: white;
     }
+    .progress-grid { display: grid; gap: 8px; margin-top: 10px; }
+    .mission-row, .title-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
+    }
+    .mission-row.done, .title-row.unlocked { border-color: rgba(34,197,94,.45); background: rgba(22,101,52,.22); }
+    .mission-name, .title-name { font-weight: 800; }
+    .reward-badge {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 54px; height: 30px;
+      padding: 0 10px; border-radius: 999px; background: #172033; color: #f8fafc; font-size: 12px; font-weight: 800;
+      white-space: nowrap;
+    }
+    .title-row.locked { opacity: .72; }
     .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
     .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
     @media (max-width: 760px) {
@@ -244,6 +257,17 @@
 
         <div class="grid-2" style="margin-top:12px;">
           <div class="card">
+            <div class="label">오늘의 미션</div>
+            <div class="progress-grid" id="dailyMissionList"></div>
+          </div>
+          <div class="card">
+            <div class="label">칭호</div>
+            <div class="progress-grid" id="titleList"></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px;">
+          <div class="card">
             <div class="label">How to play</div>
             <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. CPU는 스타일에 따라 중앙을 노리거나 안전하게 배치합니다.</div>
           </div>
@@ -266,6 +290,25 @@
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const CPU_STYLE_LABELS = { precise: '정밀형', aggressive: '공격형', defensive: '수비형' };
+    const MISSION_REWARD = 25;
+    const MISSION_POOL = [
+      { id: 'win_match', name: '승리하기', desc: '오늘 한 판을 이기세요.', test: (s) => s.result === 'win' },
+      { id: 'score_50', name: '50점 이상 득점', desc: '한 경기에서 50점 이상 기록하세요.', test: (s) => s.myScore >= 50 },
+      { id: 'center_hit', name: '중앙 적중', desc: '30점 링에 내 돌을 하나 이상 올리세요.', test: (s) => s.centerStones >= 1 },
+      { id: 'two_scoring', name: '득점석 2개', desc: '득점권 안에 내 돌 2개 이상을 남기세요.', test: (s) => s.scoringStones >= 2 },
+      { id: 'clean_guard', name: '수비 성공', desc: '상대를 20점 이하로 막으세요.', test: (s) => s.opponentScore <= 20 },
+      { id: 'wall_play', name: '벽을 이용한 샷', desc: '내 돌이 벽에 맞은 경기를 완료하세요.', test: (s) => s.wallHits > 0 },
+      { id: 'online_match', name: '온라인 한 판', desc: '온라인 대전을 한 경기 완료하세요.', test: (s) => s.isOnline }
+    ];
+    const TITLE_DEFS = [
+      { id: 'first_win', name: '첫 승의 손맛', desc: '첫 승리 달성', test: (p) => p.wins >= 1 },
+      { id: 'center_hunter', name: '하우스 헌터', desc: '30점 링 누적 5개', test: (p) => p.centerHits >= 5 },
+      { id: 'big_scorer', name: '빅 엔드 메이커', desc: '60점 이상 경기 3회', test: (p) => p.bigScoreGames >= 3 },
+      { id: 'iron_guard', name: '철벽 가드', desc: '상대 0점 경기 2회', test: (p) => p.shutouts >= 2 },
+      { id: 'daily_grinder', name: '오늘도 컬링', desc: '오늘의 미션 10개 완료', test: (p) => p.missionsCompleted >= 10 },
+      { id: 'online_rival', name: '온라인 라이벌', desc: '온라인 경기 3회 완료', test: (p) => p.onlineGames >= 3 },
+      { id: 'veteran_skip', name: '베테랑 스킵', desc: '누적 20경기 완료', test: (p) => p.games >= 20 }
+    ];
 
     const $ = (id) => document.getElementById(id);
     const screens = { entry: $('entryScreen'), lobby: $('lobbyScreen'), game: $('gameScreen') };
@@ -301,6 +344,8 @@
     const gamePlayersText = $('gamePlayersText');
     const roomModeText = $('roomModeText');
     const leaderboardEl = $('leaderboard');
+    const dailyMissionList = $('dailyMissionList');
+    const titleList = $('titleList');
     const powerFill = $('powerFill');
     const aimBadge = $('aimBadge');
     const resultOverlay = $('resultOverlay');
@@ -334,6 +379,8 @@
     let wallContacts = new Set();
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
+    let currentMissions = [];
+    let matchStats = { shots: 0, wallHits: 0 };
     let stones = [];
     let score = { blue: 0, orange: 0 };
 
@@ -585,6 +632,7 @@
           if (vn < 0) {
             const impact = Math.min(1, Math.abs(vn) / 4.5);
             if (!prevWallContacts.has(wallKey)) {
+              if (s.team === myTeam && s.launched) matchStats.wallHits += 1;
               playCollisionSound(impact * 0.8);
               vibrate(10);
               spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
@@ -636,6 +684,173 @@
 
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function todayKey() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    function seededIndex(seed, size) {
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+      return Math.abs(hash) % size;
+    }
+
+    function getDailyMissions() {
+      const date = todayKey();
+      const selected = [];
+      let cursor = seededIndex(date, MISSION_POOL.length);
+      while (selected.length < 3 && selected.length < MISSION_POOL.length) {
+        const mission = MISSION_POOL[cursor % MISSION_POOL.length];
+        if (!selected.some(item => item.id === mission.id)) selected.push(mission);
+        cursor += 2;
+      }
+      return selected;
+    }
+
+    function loadDailyProgress() {
+      try {
+        const saved = JSON.parse(localStorage.getItem('miniCurlingDailyProgress') || '{}');
+        if (saved.date === todayKey()) return saved;
+      } catch {}
+      return { date: todayKey(), completed: {} };
+    }
+
+    function saveDailyProgress(progress) {
+      localStorage.setItem('miniCurlingDailyProgress', JSON.stringify(progress));
+    }
+
+    function loadProfile() {
+      const defaults = {
+        games: 0, wins: 0, draws: 0, losses: 0, rankPoints: 0, pointsScored: 0,
+        centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
+        onlineGames: 0, missionsCompleted: 0, unlockedTitles: []
+      };
+      try { return { ...defaults, ...JSON.parse(localStorage.getItem('miniCurlingProfile') || '{}') }; }
+      catch { return defaults; }
+    }
+
+    function saveProfile(profile) {
+      localStorage.setItem('miniCurlingProfile', JSON.stringify(profile));
+    }
+
+    function summarizeMatch(result) {
+      const myScore = score[myTeam] || 0;
+      const opponentTeam = myTeam === 'blue' ? 'orange' : 'blue';
+      const opponentScore = score[opponentTeam] || 0;
+      const myStones = stones.filter(s => s.team === myTeam && !s.out);
+      const centerStones = myStones.filter(s => stoneScore(s) === 30).length;
+      const scoringStones = myStones.filter(s => stoneScore(s) > 0).length;
+      return {
+        result, myScore, opponentScore, centerStones, scoringStones,
+        wallHits: matchStats.wallHits, shots: matchStats.shots, isOnline: Boolean(conn || roomCode)
+      };
+    }
+
+    function unlockTitles(profile) {
+      const newlyUnlocked = [];
+      for (const title of TITLE_DEFS) {
+        if (!profile.unlockedTitles.includes(title.id) && title.test(profile)) {
+          profile.unlockedTitles.push(title.id);
+          newlyUnlocked.push(title);
+        }
+      }
+      return newlyUnlocked;
+    }
+
+    function recordProgress(result) {
+      const summary = summarizeMatch(result);
+      const profile = loadProfile();
+      const progress = loadDailyProgress();
+      const completedMissions = [];
+
+      profile.games += 1;
+      profile.wins += result === 'win' ? 1 : 0;
+      profile.draws += result === 'draw' ? 1 : 0;
+      profile.losses += result === 'lose' ? 1 : 0;
+      profile.pointsScored += summary.myScore;
+      profile.centerHits += summary.centerStones;
+      profile.scoringStones += summary.scoringStones;
+      profile.bigScoreGames += summary.myScore >= 60 ? 1 : 0;
+      profile.shutouts += summary.opponentScore === 0 ? 1 : 0;
+      profile.onlineGames += summary.isOnline ? 1 : 0;
+      profile.rankPoints = Math.max(0, profile.rankPoints + (result === 'win' ? 12 : result === 'draw' ? 5 : 2));
+
+      for (const mission of currentMissions) {
+        if (!progress.completed[mission.id] && mission.test(summary)) {
+          progress.completed[mission.id] = true;
+          profile.missionsCompleted += 1;
+          profile.rankPoints += MISSION_REWARD;
+          completedMissions.push(mission);
+        }
+      }
+
+      const newTitles = unlockTitles(profile);
+      saveDailyProgress(progress);
+      saveProfile(profile);
+      renderProgress();
+      return { completedMissions, newTitles, profile };
+    }
+
+    function renderProgress() {
+      currentMissions = getDailyMissions();
+      const progress = loadDailyProgress();
+      const profile = loadProfile();
+      dailyMissionList.innerHTML = currentMissions.map(mission => {
+        const done = Boolean(progress.completed[mission.id]);
+        return `
+          <div class="mission-row ${done ? 'done' : ''}">
+            <div>
+              <div class="mission-name">${done ? '완료 · ' : ''}${escapeHtml(mission.name)}</div>
+              <div class="small">${escapeHtml(mission.desc)}</div>
+            </div>
+            <div class="reward-badge">${done ? '완료' : `+${MISSION_REWARD}`}</div>
+          </div>`;
+      }).join('');
+
+      const unlocked = new Set(profile.unlockedTitles);
+      const visibleTitles = TITLE_DEFS.filter(title => unlocked.has(title.id)).slice(-4);
+      const lockedPreview = TITLE_DEFS.find(title => !unlocked.has(title.id));
+      const rows = [
+        `<div class="title-row unlocked">
+          <div>
+            <div class="title-name">랭크 포인트 ${profile.rankPoints}</div>
+            <div class="small">경기와 오늘의 미션으로 누적됩니다.</div>
+          </div>
+          <div class="reward-badge">${profile.games}G</div>
+        </div>`,
+        ...visibleTitles.map(title => `
+          <div class="title-row unlocked">
+            <div>
+              <div class="title-name">${escapeHtml(title.name)}</div>
+              <div class="small">${escapeHtml(title.desc)}</div>
+            </div>
+            <div class="reward-badge">해금</div>
+          </div>`)
+      ];
+      if (lockedPreview) {
+        rows.push(`
+          <div class="title-row locked">
+            <div>
+              <div class="title-name">다음 칭호: ${escapeHtml(lockedPreview.name)}</div>
+              <div class="small">${escapeHtml(lockedPreview.desc)}</div>
+            </div>
+            <div class="reward-badge">잠김</div>
+          </div>`);
+      }
+      titleList.innerHTML = rows.join('');
+    }
+
+    function progressSummaryText(progressResult) {
+      const parts = [];
+      if (progressResult.completedMissions.length) {
+        parts.push(`미션 완료: ${progressResult.completedMissions.map(m => m.name).join(', ')}`);
+      }
+      if (progressResult.newTitles.length) {
+        parts.push(`새 칭호: ${progressResult.newTitles.map(t => t.name).join(', ')}`);
+      }
+      return parts.length ? ` · ${parts.join(' · ')}` : '';
     }
 
     function renderLeaderboard() {
@@ -721,7 +936,8 @@
       resultText.textContent = teamResult === 'draw' ? 'Draw' : (teamResult === 'win' ? 'You Win' : 'You Lose');
       playResultSoundForTeam(myTeam);
       recordLeaderboard(teamResult);
-      showOverlay(resultTitleForTeam(myTeam), `BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.`);
+      const progressResult = recordProgress(teamResult);
+      showOverlay(resultTitleForTeam(myTeam), `BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${progressSummaryText(progressResult)}`);
       updateHud();
       broadcastState({ teamResultHost: resultForTeam('blue'), teamResultGuest: resultForTeam('orange') });
     }
@@ -754,6 +970,7 @@
       resetTurnClock();
       stones = makeInitialStones();
       score = { blue: 0, orange: 0 };
+      matchStats = { shots: 0, wallHits: 0 };
       particles = [];
       resultText.textContent = 'Ready';
       if (timerId) clearInterval(timerId);
@@ -762,6 +979,7 @@
       powerFill.style.height = '0%';
       aimBadge.textContent = '당겨서 조준';
       hideOverlay();
+      renderProgress();
       updateHud();
       draw();
       broadcastState();
@@ -834,8 +1052,9 @@
         if (!wasEnded) {
           playResultSoundForTeam(myTeam);
           recordLeaderboard(myResult);
+          var remoteProgress = recordProgress(myResult);
         }
-        showOverlay(resultTitleForTeam(myTeam), `BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.`);
+        showOverlay(resultTitleForTeam(myTeam), `BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${remoteProgress ? progressSummaryText(remoteProgress) : ''}`);
       }
       updateHud();
     }
@@ -960,6 +1179,8 @@
     }
 
     function launchStone(stoneId, vx, vy) {
+      const launchedStone = stones.find(s => s.id === stoneId);
+      if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) matchStats.shots += 1;
       stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
