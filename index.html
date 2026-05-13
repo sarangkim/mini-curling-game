@@ -286,6 +286,7 @@
     const OUTER_RING_R = SCORING_R, MIDDLE_RING_R = SCORING_R * 0.66, INNER_RING_R = SCORING_R * 0.3;
     const MAX_POWER = 5.8, FRICTION = 0.992, MIN_SPEED = 0.05, BOUNCE = 0.985;
     const POWER_STONE_FORCE = 1.42;
+    const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
     const AI_SHOT_DELAY_MS = 850;
@@ -517,6 +518,9 @@
     }
 
     function stoneForce(stone) { return stone.special === 'power' ? POWER_STONE_FORCE : 1; }
+    function stoppingPowerForDistance(distance) {
+      return Math.max(0.55, distance * (1 - FRICTION) + MIN_SPEED);
+    }
 
     function stoneScore(stone) {
       if (stone.out) return 0;
@@ -1299,29 +1303,33 @@
         const dx = target.x - stone.x;
         const dy = target.y - stone.y;
         const len = Math.hypot(dx, dy) || 1;
-        const basePower = Math.max(0.8, Math.min(MAX_POWER * 0.92, len * (1 - FRICTION) * 1.04));
-        const scales = target.plan === 'hit' ? [1.0, 1.12, 1.24, 1.36] : target.plan === 'guard' ? [0.72, 0.82, 0.92, 1.02] : [0.82, 0.92, 1.02, 1.12];
+        const basePower = stoppingPowerForDistance(len);
+        const scales = target.plan === 'hit' ? [0.95, 1.05, 1.15, 1.25] : target.plan === 'guard' ? [0.72, 0.8, 0.88, 0.96] : [0.82, 0.9, 0.98, 1.04];
         for (const scale of scales) {
-          const power = Math.min(MAX_POWER * (stone.special === 'power' ? 1 : 0.94), Math.max(0.65, basePower * scale));
+          const cap = target.plan === 'hit' ? CPU_HIT_MAX_POWER : CPU_SETTLE_MAX_POWER;
+          const power = Math.min(cap, Math.max(0.55, basePower * scale));
           const vx = (dx / len) * power;
           const vy = (dy / len) * power;
           const sim = simulateCpuShot(stone, vx, vy);
+          const settleDistance = Math.hypot(sim.x - target.x, sim.y - target.y);
           let weightedScore = sim.orangeScore * 18 - sim.blueScore * 20 + sim.score;
 
           if (style === 'aggressive') {
             weightedScore += (beforeBlueScore - sim.blueScore) * 32;
             weightedScore += sim.pushedBlue * 0.12;
             weightedScore += target.plan === 'hit' ? 22 : 0;
+            if (target.plan !== 'hit') weightedScore -= settleDistance * 1.35;
           } else if (style === 'defensive') {
-            const guardDistance = Math.hypot(sim.x - target.x, sim.y - target.y);
-            weightedScore += target.plan === 'guard' ? Math.max(0, 75 - guardDistance) : 0;
+            weightedScore += target.plan === 'guard' ? Math.max(0, 95 - settleDistance) : 0;
             weightedScore += sim.blueScore === 0 ? 18 : 0;
+            weightedScore -= settleDistance * (target.plan === 'guard' ? 1.1 : 0.75);
           } else {
             weightedScore += stoneScore({ ...stone, x: sim.x, y: sim.y, out: false }) === 30 ? 28 : 0;
+            weightedScore -= settleDistance * 1.25;
             weightedScore -= Math.abs(sim.x - CENTER_X) * 0.015;
           }
 
-          weightedScore -= power * (target.plan === 'hit' ? 1.4 : 5.4);
+          weightedScore -= power * (target.plan === 'hit' ? 2.2 : 9.5);
           const candidate = { vx, vy, score: weightedScore, power, plan: target.plan };
           if (!best || candidate.score > best.score) best = candidate;
         }
