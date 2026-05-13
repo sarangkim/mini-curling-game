@@ -7,12 +7,12 @@
   <title>Mini Curling Mobile Web v6</title>
   <style>
     :root {
-      --bg: #020617;
-      --panel: rgba(15, 23, 42, 0.96);
-      --line: #1e293b;
-      --text: #ffffff;
-      --muted: #cbd5e1;
-      --blue: #2563eb;
+      --bg: #eaf6ff;
+      --panel: rgba(255, 255, 255, 0.96);
+      --line: #bfdbfe;
+      --text: #0f172a;
+      --muted: #475569;
+      --blue: #1d4ed8;
       --orange: #f59e0b;
       --good: #16a34a;
       --warn: #b45309;
@@ -20,7 +20,9 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0;
-      background: radial-gradient(circle at top, #0f172a, #020617 62%);
+      background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.24), transparent 34%),
+        linear-gradient(180deg, #f8fcff 0%, #e0f2fe 48%, #bfdbfe 100%);
       color: var(--text);
       font-family: Arial, Helvetica, sans-serif;
     }
@@ -33,7 +35,7 @@
       border: 1px solid var(--line);
       border-radius: 26px;
       padding: 16px;
-      box-shadow: 0 20px 50px rgba(0,0,0,.28);
+      box-shadow: 0 20px 50px rgba(37,99,235,.13);
       backdrop-filter: blur(12px);
     }
     h1, h2, h3 { margin: 0; }
@@ -42,51 +44,51 @@
     .hero { padding: 12px 6px 4px; }
     .stack { display: grid; gap: 12px; }
     .grid-2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
-    .card { background: #020617; border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
-    .label { color: #94a3b8; font-size: 12px; margin-bottom: 6px; }
+    .card { background: #ffffff; border: 1px solid var(--line); border-radius: 20px; padding: 14px; }
+    .label { color: #2563eb; font-size: 12px; margin-bottom: 6px; }
     .value { font-size: 20px; font-weight: 700; }
     .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
     .row { display: flex; gap: 10px; align-items: center; }
     .row.wrap { flex-wrap: wrap; }
     button, select, input {
-      width: 100%; min-height: 48px; border-radius: 16px; border: 1px solid #334155;
-      background: #0f172a; color: white; font-size: 16px; font-weight: 700; padding: 0 14px;
+      width: 100%; min-height: 48px; border-radius: 16px; border: 1px solid #93c5fd;
+      background: #eff6ff; color: #0f172a; font-size: 16px; font-weight: 700; padding: 0 14px;
     }
     button.primary { background: var(--blue); border-color: var(--blue); }
     button.good { background: #166534; border-color: #166534; }
     button.warn { background: #92400e; border-color: #92400e; }
-    button.ghost { background: #111827; }
+    button.ghost { background: #dbeafe; color: #1e3a8a; }
     button:disabled, select:disabled, input:disabled { opacity: .55; }
     .pill {
       display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
-      background: #111827; border: 1px solid #374151; color: #dbe4ef; font-size: 12px;
+      background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 12px;
     }
     .link-box {
-      min-height: 46px; padding: 12px; border-radius: 14px; background: #111827; border: 1px solid #374151;
-      font-size: 13px; color: #e2e8f0; word-break: break-all; line-height: 1.5;
+      min-height: 46px; padding: 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #bfdbfe;
+      font-size: 13px; color: #1e293b; word-break: break-all; line-height: 1.5;
     }
     .screen-title { font-size: 24px; margin-bottom: 6px; }
     .board-wrap {
-      position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(217,154,96,0.28);
-      box-shadow: inset 0 0 18px rgba(0,0,0,.25); background: #3c1e12; touch-action: none;
+      position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(37,99,235,0.22);
+      box-shadow: inset 0 0 18px rgba(37,99,235,.16), 0 16px 38px rgba(37,99,235,.12); background: #dbeafe; touch-action: none;
     }
     canvas { display: block; width: 100%; height: auto; }
     .turn-dot { width: 14px; height: 14px; border-radius: 999px; display: inline-block; vertical-align: middle; margin-right: 8px; }
     .overlay {
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(to bottom, rgba(2,6,23,.22), rgba(2,6,23,.62));
+      background: linear-gradient(to bottom, rgba(219,234,254,.32), rgba(15,23,42,.28));
       opacity: 0; pointer-events: none; transition: opacity .25s ease;
     }
     .overlay.show { opacity: 1; pointer-events: auto; }
     .overlay-card {
-      min-width: min(84%, 390px); background: rgba(15,23,42,.95); border: 1px solid #334155; border-radius: 24px;
-      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,.35);
+      min-width: min(84%, 390px); background: rgba(255,255,255,.96); border: 1px solid #93c5fd; border-radius: 24px;
+      padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(37,99,235,.18);
     }
     .overlay-title { font-size: 30px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
     .power-wrap {
       position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.2); overflow: hidden;
+      background: rgba(255,255,255,.82); border: 1px solid rgba(37,99,235,.24); overflow: hidden;
     }
     .power-fill {
       position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
@@ -94,27 +96,27 @@
     }
     .aim-badge {
       position: absolute; left: 10px; bottom: 12px; padding: 8px 10px; border-radius: 12px;
-      background: rgba(15,23,42,.75); border: 1px solid rgba(148,163,184,.18); font-size: 12px; color: #e2e8f0;
+      background: rgba(255,255,255,.88); border: 1px solid rgba(37,99,235,.24); font-size: 12px; color: #1e3a8a;
     }
     .leaderboard { display: grid; gap: 8px; margin-top: 10px; }
     .leader-row {
       display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center;
-      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
+      padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe;
     }
     .rank-badge {
       width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; background: #172033; color: white;
+      font-weight: 800; background: #dbeafe; color: #1e3a8a;
     }
     .progress-grid { display: grid; gap: 8px; margin-top: 10px; }
     .mission-row, .title-row {
       display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
-      padding: 10px 12px; border-radius: 14px; background: #0b1220; border: 1px solid #243041;
+      padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe;
     }
-    .mission-row.done, .title-row.unlocked { border-color: rgba(34,197,94,.45); background: rgba(22,101,52,.22); }
+    .mission-row.done, .title-row.unlocked { border-color: rgba(34,197,94,.38); background: rgba(220,252,231,.9); }
     .mission-name, .title-name { font-weight: 800; }
     .reward-badge {
       display: inline-flex; align-items: center; justify-content: center; min-width: 54px; height: 30px;
-      padding: 0 10px; border-radius: 999px; background: #172033; color: #f8fafc; font-size: 12px; font-weight: 800;
+      padding: 0 10px; border-radius: 999px; background: #dbeafe; color: #1e3a8a; font-size: 12px; font-weight: 800;
       white-space: nowrap;
     }
     .title-row.locked { opacity: .72; }
@@ -287,7 +289,7 @@
     const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
     const OUTER_RING_R = SCORING_R, MIDDLE_RING_R = SCORING_R * 0.66, INNER_RING_R = SCORING_R * 0.3;
     const MAX_POWER = 5.8, FRICTION = 0.992, MIN_SPEED = 0.05, BOUNCE = 0.985;
-    const POWER_STONE_FORCE = 1.42;
+    const POWER_STONE_FORCE = 1.62, POWER_STONE_MAX_POWER = 8.2;
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
@@ -561,6 +563,28 @@
       const parts = scoreParts(team);
       const label = team.toUpperCase();
       return `${label} ${score[team]} = ${parts.length ? parts.join(' + ') : '득점 없음'}`;
+    }
+
+    function scoreForTeam(team, values = score) {
+      return values?.[team] || 0;
+    }
+
+    function opponentOf(team) {
+      return team === 'blue' ? 'orange' : 'blue';
+    }
+
+    function resultScoreText(team, values = score) {
+      const opponent = opponentOf(team);
+      const myScore = scoreForTeam(team, values);
+      const opponentScore = scoreForTeam(opponent, values);
+      const diff = Math.abs(myScore - opponentScore);
+      if (myScore === opponentScore) {
+        return `나는 ${myScore}점, 상대는 ${opponentScore}점으로 비겼습니다.`;
+      }
+      if (myScore > opponentScore) {
+        return `나는 ${myScore}점, 상대는 ${opponentScore}점입니다. ${diff}점 차로 이겼습니다.`;
+      }
+      return `나는 ${myScore}점, 상대는 ${opponentScore}점입니다. ${diff}점 차로 졌습니다.`;
     }
 
     function activateNextStone(team) {
@@ -968,7 +992,7 @@
       playResultSoundForTeam(myTeam);
       recordLeaderboard(teamResult);
       const progressResult = recordProgress(teamResult);
-      showOverlay(resultTitleForTeam(myTeam), `BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${progressSummaryText(progressResult)}`);
+      showOverlay(resultTitleForTeam(myTeam), `${resultScoreText(myTeam)} BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${progressSummaryText(progressResult)}`);
       updateHud();
       broadcastState({ teamResultHost: resultForTeam('blue'), teamResultGuest: resultForTeam('orange') });
     }
@@ -1086,7 +1110,7 @@
           recordLeaderboard(myResult);
           var remoteProgress = recordProgress(myResult);
         }
-        showOverlay(resultTitleForTeam(myTeam), `BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${remoteProgress ? progressSummaryText(remoteProgress) : ''}`);
+        showOverlay(resultTitleForTeam(myTeam), `${resultScoreText(myTeam, payload.score)} BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${remoteProgress ? progressSummaryText(remoteProgress) : ''}`);
       }
       updateHud();
     }
@@ -1381,9 +1405,11 @@
       drag.currentY = p.y;
       const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY;
       const len = Math.hypot(dx, dy);
-      const powerPct = Math.min(100, (len / (MAX_POWER * 22)) * 100);
+      const stone = stones.find(s => s.id === drag.stoneId);
+      const maxPower = stone?.special === 'power' ? POWER_STONE_MAX_POWER : MAX_POWER;
+      const powerPct = Math.min(100, (len / (maxPower * 22)) * 100);
       powerFill.style.height = `${powerPct}%`;
-      aimBadge.textContent = `Power ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
+      aimBadge.textContent = `${stone?.special === 'power' ? 'Power Stone' : 'Power'} ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
     });
 
     function releaseDrag(e) {
@@ -1395,7 +1421,9 @@
       powerFill.style.height = '0%';
       aimBadge.textContent = canControlTurn() ? activeStoneLabel() : '상대 차례입니다';
       if (len < 8) return;
-      const power = Math.min(MAX_POWER, len / 22);
+      const stone = stones.find(s => s.id === stoneId);
+      const maxPower = stone?.special === 'power' ? POWER_STONE_MAX_POWER : MAX_POWER;
+      const power = Math.min(maxPower, len / 22);
       launchStone(stoneId, (dx / len) * power, (dy / len) * power);
     }
 
@@ -1404,32 +1432,32 @@
     canvas.addEventListener('pointercancel', releaseDrag);
 
     function drawBoard() {
-      const grd = ctx.createRadialGradient(BOARD_W * 0.5, BOARD_H * 0.35, 60, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.75);
-      grd.addColorStop(0, '#b55d27'); grd.addColorStop(0.58, '#93461c'); grd.addColorStop(1, '#5b2c14');
-      ctx.fillStyle = '#2b140b'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+      const grd = ctx.createRadialGradient(BOARD_W * 0.45, BOARD_H * 0.34, 80, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.82);
+      grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.62, '#e0f2fe'); grd.addColorStop(1, '#93c5fd');
+      ctx.fillStyle = '#bfdbfe'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
       const outer = octagonPoints(), inner = octagonPoints(OCTAGON_INSET - 16);
       const makePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
-      makePath(outer); ctx.strokeStyle = '#d89a60'; ctx.lineWidth = 14; ctx.stroke();
-      makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#6b3418'; ctx.lineWidth = 10; ctx.stroke();
+      makePath(outer); ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 14; ctx.stroke();
+      makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 10; ctx.stroke();
       ctx.save(); makePath(inner); ctx.clip();
       const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220);
-      shine.addColorStop(0, 'rgba(255,255,255,0.25)'); shine.addColorStop(1, 'rgba(255,255,255,0)');
+      shine.addColorStop(0, 'rgba(255,255,255,0.78)'); shine.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(251,191,36,0.22)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(59,130,246,0.24)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(239,68,68,0.30)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(17,24,39,0.95)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(191,219,254,0.72)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(96,165,250,0.44)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(245,158,11,0.46)'; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(30,64,175,0.92)'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, OUTER_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(15,23,42,0.78)'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
       ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
       ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
       ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
       if (drag) {
-        ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]);
+        ctx.strokeStyle = 'rgba(30,64,175,.9)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]);
         ctx.beginPath(); ctx.moveTo(drag.startX, drag.startY); ctx.lineTo(drag.currentX, drag.currentY); ctx.stroke();
-        ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.arc(drag.currentX, drag.currentY, 8, 0, Math.PI * 2); ctx.fillStyle = '#1d4ed8'; ctx.fill();
       }
       for (const s of stones) {
         if (s.out) continue;
