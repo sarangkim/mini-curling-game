@@ -269,7 +269,7 @@
         <div class="grid-2" style="margin-top:12px;">
           <div class="card">
             <div class="label">How to play</div>
-            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. P가 표시된 파워 스톤은 충돌 때 상대 돌을 더 강하게 밀어냅니다.</div>
+            <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. P가 표시된 파워 스톤은 2~4번째 중 하나로 나오며, 충돌 때 상대 돌을 더 강하게 밀어냅니다.</div>
           </div>
           <div class="card">
             <div class="label">Leaderboard (이 기기 저장)</div>
@@ -303,7 +303,7 @@
       { id: 'online_match', name: '온라인 한 판', desc: '온라인 대전을 한 경기 완료하세요.', test: (s) => s.isOnline }
     ];
     const TITLE_DEFS = [
-      { id: 'first_win', name: '첫 승의 손맛', desc: '첫 승리 달성', test: (p) => p.wins >= 1 },
+      { id: 'first_win', name: '첫 승리', desc: '처음으로 경기에서 승리하기', test: (p) => p.wins >= 1 },
       { id: 'center_hunter', name: '하우스 헌터', desc: '30점 링 누적 5개', test: (p) => p.centerHits >= 5 },
       { id: 'big_scorer', name: '빅 엔드 메이커', desc: '60점 이상 경기 3회', test: (p) => p.bigScoreGames >= 3 },
       { id: 'iron_guard', name: '철벽 가드', desc: '상대 0점 경기 2회', test: (p) => p.shutouts >= 2 },
@@ -509,8 +509,8 @@
       const laneYTop = TABLE_MARGIN + 92;
       const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
       const startXs = [240, 320, 400, 480];
-      const bluePowerIndex = Math.floor(Math.random() * startXs.length);
-      const orangePowerIndex = Math.floor(Math.random() * startXs.length);
+      const bluePowerIndex = 1 + Math.floor(Math.random() * (startXs.length - 1));
+      const orangePowerIndex = 1 + Math.floor(Math.random() * (startXs.length - 1));
       return [
         ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: n === orangePowerIndex ? 'power' : '' })),
         ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: n === bluePowerIndex ? 'power' : '' })),
@@ -518,6 +518,10 @@
     }
 
     function stoneForce(stone) { return stone.special === 'power' ? POWER_STONE_FORCE : 1; }
+    function activeStoneLabel() {
+      const stone = activeStoneForTurn();
+      return stone?.special === 'power' ? '파워 스톤 · 충돌 밀어내기 강화' : '당겨서 조준';
+    }
     function stoppingPowerForDistance(distance) {
       return Math.max(0.55, distance * (1 - FRICTION) + MIN_SPEED);
     }
@@ -836,7 +840,7 @@
               <div class="title-name">${escapeHtml(title.name)}</div>
               <div class="small">${escapeHtml(title.desc)}</div>
             </div>
-            <div class="reward-badge">해금</div>
+            <div class="reward-badge">획득</div>
           </div>`)
       ];
       if (lockedPreview) {
@@ -846,7 +850,7 @@
               <div class="title-name">다음 칭호: ${escapeHtml(lockedPreview.name)}</div>
               <div class="small">${escapeHtml(lockedPreview.desc)}</div>
             </div>
-            <div class="reward-badge">잠김</div>
+            <div class="reward-badge">미획득</div>
           </div>`);
       }
       titleList.innerHTML = rows.join('');
@@ -987,7 +991,7 @@
       timerId = null;
       if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       powerFill.style.height = '0%';
-      aimBadge.textContent = '당겨서 조준';
+      aimBadge.textContent = activeStoneLabel();
       hideOverlay();
       renderProgress();
       updateHud();
@@ -1034,7 +1038,7 @@
       startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
       timeSelect.disabled = conn ? !isHost : false;
       inviteLinkBox.textContent = onlineNoticeMessage || (roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.');
-      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다');
+      aimBadge.textContent = canControlTurn() ? activeStoneLabel() : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다');
     }
 
     function getCanvasPos(clientX, clientY) {
@@ -1371,7 +1375,7 @@
       const stoneId = drag.stoneId;
       drag = null;
       powerFill.style.height = '0%';
-      aimBadge.textContent = canControlTurn() ? '당겨서 조준' : '상대 차례입니다';
+      aimBadge.textContent = canControlTurn() ? activeStoneLabel() : '상대 차례입니다';
       if (len < 8) return;
       const power = Math.min(MAX_POWER, len / 22);
       launchStone(stoneId, (dx / len) * power, (dy / len) * power);
