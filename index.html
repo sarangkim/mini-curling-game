@@ -122,10 +122,23 @@
     .title-row.locked { opacity: .72; }
     .score-breakdown { margin-top: 8px; }
     .score-line { font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .skin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .skin-option {
+      min-height: 74px; padding: 8px; border-radius: 16px; border: 1px solid #bfdbfe;
+      background: #f8fbff; color: #1e3a8a; display: grid; justify-items: center; align-content: center; gap: 5px;
+      font-size: 12px; font-weight: 800;
+    }
+    .skin-option.selected { background: #dbeafe; border-color: #2563eb; box-shadow: inset 0 0 0 2px rgba(37,99,235,.18); }
+    .skin-preview {
+      width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center;
+      background: #2563eb; color: #ffffff; border: 3px solid #ffffff; box-shadow: 0 2px 8px rgba(37,99,235,.24);
+      font-size: 14px; line-height: 1;
+    }
     .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
     .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
     @media (max-width: 760px) {
       .grid-2, .stats, .footer-actions { grid-template-columns: 1fr; }
+      .skin-grid { grid-template-columns: repeat(3, 1fr); }
       h1 { font-size: 23px; }
       .screen-title { font-size: 22px; }
       .value { font-size: 18px; }
@@ -147,6 +160,14 @@
             <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
             <button id="saveNameBtn" class="ghost">저장</button>
           </div>
+        </div>
+
+        <div class="card stack">
+          <div>
+            <div class="label">내 스톤 캐릭터</div>
+            <div class="small">내가 조종하는 팀의 스톤에만 적용됩니다. 선택은 이 기기에 저장됩니다.</div>
+          </div>
+          <div class="skin-grid" id="stoneSkinList"></div>
         </div>
 
         <div class="grid-2">
@@ -296,6 +317,13 @@
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const CPU_STYLE_LABELS = { precise: '정밀형', aggressive: '공격형', defensive: '수비형' };
+    const STONE_SKINS = [
+      { id: 'classic', name: '기본', mark: '', accent: '#ffffff' },
+      { id: 'smile', name: '스마일', mark: '^^', accent: '#fef08a' },
+      { id: 'focus', name: '집중', mark: '!!', accent: '#bfdbfe' },
+      { id: 'spark', name: '스파크', mark: '*', accent: '#fde68a' },
+      { id: 'crown', name: '크라운', mark: 'W', accent: '#fcd34d' }
+    ];
     const MISSION_REWARD = 25;
     const MISSION_POOL = [
       { id: 'win_match', name: '승리하기', desc: '오늘 한 판을 이기세요.', test: (s) => s.result === 'win' },
@@ -334,6 +362,7 @@
     const backToLobbyBtn = $('backToLobbyBtn');
     const cpuStyleSelect = $('cpuStyleSelect');
     const playerNameInput = $('playerNameInput');
+    const stoneSkinList = $('stoneSkinList');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
     const turnText = $('turnText');
@@ -386,12 +415,14 @@
     let wallContacts = new Set();
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
+    let stoneSkin = localStorage.getItem('miniCurlingStoneSkin') || 'classic';
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
     let stones = [];
     let score = { blue: 0, orange: 0 };
 
     if (!CPU_STYLE_LABELS[cpuStyle]) cpuStyle = 'precise';
+    if (!STONE_SKINS.some(skin => skin.id === stoneSkin)) stoneSkin = 'classic';
     playerNameInput.value = playerName;
     cpuStyleSelect.value = cpuStyle;
 
@@ -739,6 +770,19 @@
 
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function selectedStoneSkin() {
+      return STONE_SKINS.find(skin => skin.id === stoneSkin) || STONE_SKINS[0];
+    }
+
+    function renderStoneSkins() {
+      stoneSkinList.innerHTML = STONE_SKINS.map(skin => `
+        <button class="skin-option ${skin.id === stoneSkin ? 'selected' : ''}" type="button" data-skin="${escapeHtml(skin.id)}" aria-pressed="${skin.id === stoneSkin}">
+          <span class="skin-preview" style="background:${skin.id === 'classic' ? COLORS.blue : skin.accent}; color:${skin.id === 'classic' ? '#ffffff' : '#1e3a8a'}">${escapeHtml(skin.mark || 'B')}</span>
+          <span>${escapeHtml(skin.name)}</span>
+        </button>
+      `).join('');
     }
 
     function todayKey() {
@@ -1431,6 +1475,52 @@
     canvas.addEventListener('pointerleave', releaseDrag);
     canvas.addEventListener('pointercancel', releaseDrag);
 
+    function drawStoneSkin(stone) {
+      if (stone.team !== myTeam) return;
+      const skin = selectedStoneSkin();
+      if (skin.id === 'classic') return;
+
+      ctx.save();
+      ctx.translate(stone.x, stone.y);
+      ctx.beginPath();
+      ctx.arc(0, 0, STONE_R - 6, 0, Math.PI * 2);
+      ctx.fillStyle = skin.accent;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(30,64,175,0.38)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.strokeStyle = '#1e3a8a';
+      ctx.fillStyle = '#1e3a8a';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 2.5;
+
+      if (skin.id === 'smile') {
+        ctx.beginPath(); ctx.arc(-7, -4, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(7, -4, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 3, 8, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+      } else if (skin.id === 'focus') {
+        ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-3, -3); ctx.moveTo(10, -6); ctx.lineTo(3, -3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-9, 6); ctx.lineTo(9, 6); ctx.stroke();
+      } else if (skin.id === 'spark') {
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const r = i % 2 === 0 ? 11 : 4;
+          const a = -Math.PI / 2 + i * Math.PI / 4;
+          const x = Math.cos(a) * r, y = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath(); ctx.fill();
+      } else if (skin.id === 'crown') {
+        ctx.beginPath();
+        ctx.moveTo(-11, 6); ctx.lineTo(-9, -8); ctx.lineTo(-2, 0); ctx.lineTo(0, -10); ctx.lineTo(2, 0); ctx.lineTo(9, -8); ctx.lineTo(11, 6);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = skin.accent;
+        ctx.fillRect(-7, 3, 14, 3);
+      }
+      ctx.restore();
+    }
+
     function drawBoard() {
       const grd = ctx.createRadialGradient(BOARD_W * 0.45, BOARD_H * 0.34, 80, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.82);
       grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.62, '#e0f2fe'); grd.addColorStop(1, '#93c5fd');
@@ -1464,6 +1554,7 @@
         ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R + 4, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
         ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
         ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke();
+        drawStoneSkin(s);
         if (s.special === 'power') {
           ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
           ctx.fillStyle = '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P', s.x, s.y + 1);
@@ -1524,6 +1615,17 @@
       playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
       localStorage.setItem('miniCurlingPlayerName', playerName);
       renderLeaderboard();
+    });
+
+    stoneSkinList.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-skin]');
+      if (!button) return;
+      const nextSkin = button.dataset.skin;
+      if (!STONE_SKINS.some(skin => skin.id === nextSkin)) return;
+      stoneSkin = nextSkin;
+      localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
+      renderStoneSkins();
+      draw();
     });
 
     cpuStyleSelect.addEventListener('change', () => {
@@ -1590,6 +1692,7 @@
     }
 
     stones = makeInitialStones();
+    renderStoneSkins();
     renderLeaderboard();
     resetGame();
     initFromQuery();
