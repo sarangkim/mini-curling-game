@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <link rel="icon" href="data:," />
   <title>Mini Curling Mobile Web v6</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --bg: #eaf6ff;
@@ -67,6 +68,10 @@
       min-height: 46px; padding: 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #bfdbfe;
       font-size: 13px; color: #1e293b; word-break: break-all; line-height: 1.5;
     }
+    .account-box { display: grid; gap: 10px; }
+    .account-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+    .account-avatar { width: 38px; height: 38px; border-radius: 999px; background: #dbeafe; border: 1px solid #bfdbfe; object-fit: cover; }
+    .google-button-wrap { min-height: 40px; display: flex; align-items: center; }
     .screen-title { font-size: 24px; margin-bottom: 6px; }
     .board-wrap {
       position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(37,99,235,0.22);
@@ -160,6 +165,20 @@
             <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
             <button id="saveNameBtn" class="ghost">저장</button>
           </div>
+        </div>
+
+        <div class="card account-box">
+          <div class="label">Google 로그인</div>
+          <div class="account-row" id="accountRow">
+            <div class="account-avatar" id="accountAvatar"></div>
+            <div>
+              <div class="title-name" id="accountName">게스트 플레이 중</div>
+              <div class="small" id="accountSubText">전적은 이 브라우저의 게스트 기록에 저장됩니다.</div>
+            </div>
+            <button id="signOutBtn" class="ghost" style="display:none; min-width:86px;">로그아웃</button>
+          </div>
+          <div class="google-button-wrap" id="googleButtonWrap"></div>
+          <div class="small" id="googleLoginHint"></div>
         </div>
 
         <div class="card stack">
@@ -315,6 +334,7 @@
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
+    const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const CPU_STYLE_LABELS = { precise: '정밀형', aggressive: '공격형', defensive: '수비형' };
@@ -372,6 +392,12 @@
     const backToLobbyBtn = $('backToLobbyBtn');
     const cpuStyleSelect = $('cpuStyleSelect');
     const playerNameInput = $('playerNameInput');
+    const accountAvatar = $('accountAvatar');
+    const accountName = $('accountName');
+    const accountSubText = $('accountSubText');
+    const googleButtonWrap = $('googleButtonWrap');
+    const googleLoginHint = $('googleLoginHint');
+    const signOutBtn = $('signOutBtn');
     const stoneSkinList = $('stoneSkinList');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
@@ -427,6 +453,7 @@
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
     let stoneSkin = localStorage.getItem('miniCurlingStoneSkin') || 'classic';
+    let googleUser = loadGoogleUser();
     let teamSkins = { blue: stoneSkin, orange: 'classic' };
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
@@ -773,16 +800,94 @@
     }
 
     function loadLeaderboard() {
-      try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); }
+      try { return JSON.parse(localStorage.getItem(storageKey('miniCurlingLeaderboard')) || '[]'); }
       catch { return []; }
     }
 
     function saveLeaderboard(items) {
-      localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10)));
+      localStorage.setItem(storageKey('miniCurlingLeaderboard'), JSON.stringify(items.slice(0, 10)));
     }
 
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function accountSuffix() {
+      return googleUser?.sub ? `:${googleUser.sub}` : '';
+    }
+
+    function storageKey(base) {
+      return `${base}${accountSuffix()}`;
+    }
+
+    function loadGoogleUser() {
+      try { return JSON.parse(localStorage.getItem('miniCurlingGoogleUser') || 'null'); }
+      catch { return null; }
+    }
+
+    function saveGoogleUser(user) {
+      if (user) localStorage.setItem('miniCurlingGoogleUser', JSON.stringify(user));
+      else localStorage.removeItem('miniCurlingGoogleUser');
+    }
+
+    function decodeJwtPayload(token) {
+      const payload = token.split('.')[1];
+      if (!payload) throw new Error('Invalid credential');
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(atob(base64).split('').map(char => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`).join(''));
+      return JSON.parse(json);
+    }
+
+    function handleGoogleCredential(response) {
+      try {
+        const payload = decodeJwtPayload(response.credential || '');
+        googleUser = {
+          sub: payload.sub,
+          name: payload.name || payload.given_name || 'Google Player',
+          email: payload.email || '',
+          picture: payload.picture || ''
+        };
+        saveGoogleUser(googleUser);
+        playerName = googleUser.name.slice(0, 20);
+        playerNameInput.value = playerName;
+        localStorage.setItem('miniCurlingPlayerName', playerName);
+        renderAccount();
+        renderProgress();
+        renderLeaderboard();
+      } catch {
+        googleLoginHint.textContent = 'Google 로그인 정보를 읽지 못했습니다. 다시 시도해 주세요.';
+      }
+    }
+
+    function renderAccount() {
+      const configured = GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID';
+      if (googleUser) {
+        accountName.textContent = googleUser.name;
+        accountSubText.textContent = googleUser.email ? `${googleUser.email} 계정 전적에 저장 중` : 'Google 계정 전적에 저장 중';
+        accountAvatar.innerHTML = googleUser.picture ? `<img class="account-avatar" src="${escapeHtml(googleUser.picture)}" alt="">` : '';
+        signOutBtn.style.display = '';
+        googleButtonWrap.style.display = 'none';
+        googleLoginHint.textContent = '이 기기에서는 Google 계정별로 전적, 급수, 레이팅이 분리 저장됩니다.';
+        return;
+      }
+      accountName.textContent = '게스트 플레이 중';
+      accountSubText.textContent = '전적은 이 브라우저의 게스트 기록에 저장됩니다.';
+      accountAvatar.innerHTML = '';
+      signOutBtn.style.display = 'none';
+      googleButtonWrap.style.display = '';
+      googleLoginHint.textContent = configured ? '로그인하면 이 기기에서 Google 계정 전적으로 기록됩니다.' : 'Google Cloud Console에서 OAuth Client ID를 발급해 GOOGLE_CLIENT_ID에 넣으면 버튼이 활성화됩니다.';
+    }
+
+    function initGoogleSignIn() {
+      renderAccount();
+      if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') return;
+      if (!window.google?.accounts?.id) {
+        googleLoginHint.textContent = 'Google 로그인 스크립트를 불러오는 중입니다.';
+        setTimeout(initGoogleSignIn, 500);
+        return;
+      }
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+      google.accounts.id.renderButton(googleButtonWrap, { theme: 'outline', size: 'large', shape: 'pill', width: 260 });
     }
 
     function selectedStoneSkin() {
@@ -839,14 +944,14 @@
 
     function loadDailyProgress() {
       try {
-        const saved = JSON.parse(localStorage.getItem('miniCurlingDailyProgress') || '{}');
+        const saved = JSON.parse(localStorage.getItem(storageKey('miniCurlingDailyProgress')) || '{}');
         if (saved.date === todayKey()) return saved;
       } catch {}
       return { date: todayKey(), completed: {} };
     }
 
     function saveDailyProgress(progress) {
-      localStorage.setItem('miniCurlingDailyProgress', JSON.stringify(progress));
+      localStorage.setItem(storageKey('miniCurlingDailyProgress'), JSON.stringify(progress));
     }
 
     function rankFromRating(rating) {
@@ -888,7 +993,7 @@
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: []
       };
       try {
-        const profile = { ...defaults, ...JSON.parse(localStorage.getItem('miniCurlingProfile') || '{}') };
+        const profile = { ...defaults, ...JSON.parse(localStorage.getItem(storageKey('miniCurlingProfile')) || '{}') };
         if (!profile.currentRankKey) profile.currentRankKey = rankFromRating(profile.rating).key;
         return profile;
       }
@@ -896,7 +1001,7 @@
     }
 
     function saveProfile(profile) {
-      localStorage.setItem('miniCurlingProfile', JSON.stringify(profile));
+      localStorage.setItem(storageKey('miniCurlingProfile'), JSON.stringify(profile));
     }
 
     function summarizeMatch(result) {
@@ -1763,6 +1868,15 @@
       renderLeaderboard();
     });
 
+    signOutBtn.addEventListener('click', () => {
+      googleUser = null;
+      saveGoogleUser(null);
+      google.accounts?.id?.disableAutoSelect?.();
+      renderAccount();
+      renderProgress();
+      renderLeaderboard();
+    });
+
     stoneSkinList.addEventListener('click', (e) => {
       const button = e.target.closest('[data-skin]');
       if (!button) return;
@@ -1842,6 +1956,7 @@
     }
 
     stones = makeInitialStones();
+    initGoogleSignIn();
     renderStoneSkins();
     renderLeaderboard();
     resetGame();
