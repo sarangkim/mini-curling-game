@@ -210,6 +210,7 @@
           <div class="row wrap">
             <span class="pill">상태: <strong id="onlineStatusText">방 대기 중</strong></span>
             <span class="pill">내 팀: <strong id="myTeamText">BLUE</strong></span>
+            <span class="pill">스톤: <strong id="teamSkinText">BLUE 기본 / ORANGE 기본</strong></span>
             <span class="pill">방 코드: <strong id="roomCodeText">-</strong></span>
             <span class="pill">인원: <strong id="playersText">1 / 2</strong></span>
           </div>
@@ -384,6 +385,7 @@
     const inviteLinkBox = $('inviteLinkBox');
     const onlineStatusText = $('onlineStatusText');
     const myTeamText = $('myTeamText');
+    const teamSkinText = $('teamSkinText');
     const roomCodeText = $('roomCodeText');
     const playersText = $('playersText');
     const gamePlayersText = $('gamePlayersText');
@@ -425,6 +427,7 @@
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
     let stoneSkin = localStorage.getItem('miniCurlingStoneSkin') || 'classic';
+    let teamSkins = { blue: stoneSkin, orange: 'classic' };
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
     let stones = [];
@@ -432,6 +435,7 @@
 
     if (!CPU_STYLE_LABELS[cpuStyle]) cpuStyle = 'precise';
     if (!STONE_SKINS.some(skin => skin.id === stoneSkin)) stoneSkin = 'classic';
+    syncOwnSkin();
     playerNameInput.value = playerName;
     cpuStyleSelect.value = cpuStyle;
 
@@ -783,6 +787,22 @@
 
     function selectedStoneSkin() {
       return STONE_SKINS.find(skin => skin.id === stoneSkin) || STONE_SKINS[0];
+    }
+
+    function skinById(id) {
+      return STONE_SKINS.find(skin => skin.id === id) || STONE_SKINS[0];
+    }
+
+    function isValidSkin(id) {
+      return STONE_SKINS.some(skin => skin.id === id);
+    }
+
+    function syncOwnSkin() {
+      teamSkins = { ...teamSkins, [myTeam]: stoneSkin };
+    }
+
+    function teamSkinSummary() {
+      return `BLUE ${skinById(teamSkins.blue).name} / ORANGE ${skinById(teamSkins.orange).name}`;
     }
 
     function renderStoneSkins() {
@@ -1186,6 +1206,7 @@
       gamePlayersText.textContent = `${playersConnected} / 2`;
       onlineStatusText.textContent = onlineErrorMessage || (conn ? '온라인 연결됨' : (roomCode ? '방 대기 중' : '오프라인 로컬 모드'));
       myTeamText.textContent = myTeam.toUpperCase();
+      teamSkinText.textContent = teamSkinSummary();
       roomCodeText.textContent = roomCode || '-';
       roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'VS CPU');
       startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
@@ -1200,7 +1221,8 @@
     }
 
     function currentStatePayload(extra = {}) {
-      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, ...extra };
+      syncOwnSkin();
+      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, teamSkins, ...extra };
     }
 
     function applyRemoteState(payload) {
@@ -1211,6 +1233,8 @@
       if (payload.hostTime) timeSelect.value = String(payload.hostTime);
       if (payload.stones) stones = payload.stones;
       if (payload.score) score = payload.score;
+      if (payload.teamSkins) teamSkins = { ...teamSkins, ...payload.teamSkins };
+      syncOwnSkin();
       playersConnected = payload.playersConnected || playersConnected;
       if (payload.phase === 'ended') {
         enterGameScreen('온라인 대전 결과입니다.');
@@ -1233,14 +1257,33 @@
       conn = connection;
       conn.on('open', () => {
         playersConnected = 2;
+        syncOwnSkin();
         updateHud();
-        sendMessage({ type: 'hello', playerName, team: myTeam });
+        sendMessage({ type: 'hello', playerName, team: myTeam, stoneSkin });
         if (isHost) broadcastState();
       });
       conn.on('data', (data) => {
         if (!data || typeof data !== 'object') return;
-        if (data.type === 'hello') { playersConnected = 2; updateHud(); return; }
-        if (data.type === 'request_state' && isHost) { broadcastState(); return; }
+        if (data.type === 'hello') {
+          playersConnected = 2;
+          if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          syncOwnSkin();
+          updateHud();
+          if (isHost) broadcastState();
+          return;
+        }
+        if (data.type === 'skin_update') {
+          if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          updateHud();
+          draw();
+          if (isHost) broadcastState();
+          return;
+        }
+        if (data.type === 'request_state' && isHost) {
+          if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          broadcastState();
+          return;
+        }
         if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
         if (data.type === 'sfx' && data.kind === 'collision') { playCollisionSound(data.volume || 0.5); return; }
         if (data.type === 'launch' && isHost) {
@@ -1271,6 +1314,7 @@
       myTeam = 'blue';
       roomCode = '';
       playersConnected = 1;
+      teamSkins = { blue: stoneSkin, orange: 'classic' };
       history.replaceState({}, '', window.location.pathname);
       updateHud();
     }
@@ -1282,6 +1326,8 @@
       roomCode = randomCode();
       isHost = true;
       myTeam = 'blue';
+      teamSkins = { blue: 'classic', orange: 'classic' };
+      syncOwnSkin();
       peer = new Peer(PEER_PREFIX + roomCode);
       peer.on('open', () => {
         playersConnected = 1;
@@ -1307,13 +1353,15 @@
       roomCode = code.toUpperCase();
       isHost = false;
       myTeam = 'orange';
+      teamSkins = { blue: 'classic', orange: 'classic' };
+      syncOwnSkin();
       peer = new Peer();
       peer.on('open', () => {
         const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
         setConnectionHandlers(connection);
         connection.on('open', () => {
           onlineStatusText.textContent = '방 참가 완료';
-          sendMessage({ type: 'request_state', playerName });
+          sendMessage({ type: 'request_state', playerName, team: myTeam, stoneSkin });
           enterLobbyScreen();
         });
       });
@@ -1543,8 +1591,7 @@
     canvas.addEventListener('pointercancel', releaseDrag);
 
     function drawStoneSkin(stone) {
-      if (stone.team !== myTeam) return;
-      const skin = selectedStoneSkin();
+      const skin = skinById(teamSkins[stone.team]);
       if (skin.id === 'classic') return;
 
       ctx.save();
@@ -1723,8 +1770,12 @@
       if (!STONE_SKINS.some(skin => skin.id === nextSkin)) return;
       stoneSkin = nextSkin;
       localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
+      syncOwnSkin();
       renderStoneSkins();
+      updateHud();
       draw();
+      sendMessage({ type: 'skin_update', team: myTeam, stoneSkin });
+      if (isHost) broadcastState();
     });
 
     cpuStyleSelect.addEventListener('change', () => {
