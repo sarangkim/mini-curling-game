@@ -249,6 +249,14 @@
         </div>
 
         <div class="card stack">
+          <div>
+            <div class="label">내 스톤 캐릭터</div>
+            <div class="small">방에 들어온 뒤에도 캐릭터를 바꿀 수 있고, 상대에게 바로 표시됩니다.</div>
+          </div>
+          <div class="skin-grid" id="lobbyStoneSkinList"></div>
+        </div>
+
+        <div class="card stack">
           <div class="label">턴 제한 시간</div>
           <select id="timeSelect">
             <option value="10">10 seconds</option>
@@ -366,7 +374,7 @@
       { id: 'sticky', label: '끈끈이', color: '#22c55e', mark: 'G' }
     ];
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
-    const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
+    const AUDIO_COOLDOWN_MS = 35, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyAienmWWD71Y6gNhxREUoEhe28hodetSyE",
@@ -442,6 +450,7 @@
     const googleLoginHint = $('googleLoginHint');
     const signOutBtn = $('signOutBtn');
     const stoneSkinList = $('stoneSkinList');
+    const lobbyStoneSkinList = $('lobbyStoneSkinList');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
     const turnText = $('turnText');
@@ -547,14 +556,33 @@
       const now = performance.now();
       if (now - lastSoundAt < AUDIO_COOLDOWN_MS) return;
       lastSoundAt = now;
+      let fallbackTimer = null;
       try {
         const sfx = collisionSfx ? collisionSfx.cloneNode(true) : new Audio(COLLISION_SOUND_URL);
         sfx.preload = 'auto';
         sfx.playsInline = true;
         sfx.volume = Math.max(0.2, Math.min(1, intensity * 0.95));
         sfx.currentTime = 0;
-        sfx.play().catch(() => {});
-      } catch {}
+        fallbackTimer = setTimeout(() => playCollisionFallback(intensity), 120);
+        sfx.play().then(() => {
+          if (fallbackTimer) clearTimeout(fallbackTimer);
+        }).catch(() => {
+          if (fallbackTimer) clearTimeout(fallbackTimer);
+          playCollisionFallback(intensity);
+        });
+      } catch {
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        playCollisionFallback(intensity);
+      }
+    }
+
+    function playCollisionFallback(intensity = 1) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      const volume = Math.max(0.035, Math.min(0.12, intensity * 0.11));
+      tone(180 + intensity * 180, t, 0.055, 'square', volume);
+      tone(90 + intensity * 80, t + 0.035, 0.07, 'triangle', volume * 0.72);
     }
 
     function tone(freq, startAt, duration, type = 'sine', gainValue = 0.18) {
@@ -615,6 +643,24 @@
       tone(329.63, t + 0.14, 0.18, 'triangle', 0.095);
       tone(261.63, t + 0.30, 0.22, 'sawtooth', 0.085);
       tone(196, t + 0.52, 0.36, 'sine', 0.075);
+    }
+
+    function playTurnSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(660, t, 0.08, 'triangle', 0.07);
+      tone(880, t + 0.08, 0.11, 'triangle', 0.06);
+    }
+
+    function playTimeoutSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(220, t, 0.12, 'sawtooth', 0.08);
+      tone(165, t + 0.13, 0.18, 'sawtooth', 0.075);
     }
 
     function playPowerLaunchSound(type) {
@@ -911,6 +957,7 @@
         other.vx = 0;
         other.vy = 0;
         playExplosionSound();
+        sendSfx('explosion');
         vibrate(45);
         return true;
       }
@@ -1123,12 +1170,14 @@
     }
 
     function renderStoneSkins() {
-      stoneSkinList.innerHTML = STONE_SKINS.map(skin => `
+      const html = STONE_SKINS.map(skin => `
         <button class="skin-option ${skin.id === stoneSkin ? 'selected' : ''}" type="button" data-skin="${escapeHtml(skin.id)}" aria-pressed="${skin.id === stoneSkin}">
           <span class="skin-preview" style="background:${skin.id === 'classic' ? COLORS.blue : skin.accent}; color:${skin.id === 'classic' ? '#ffffff' : '#1e3a8a'}">${escapeHtml(skin.mark || 'B')}</span>
           <span>${escapeHtml(skin.name)}</span>
         </button>
       `).join('');
+      stoneSkinList.innerHTML = html;
+      lobbyStoneSkinList.innerHTML = html;
     }
 
     function todayKey() {
@@ -1522,6 +1571,10 @@
 
     function advanceTurn(forcedTimeout = false) {
       if (forcedTimeout) {
+        playTimeoutSound();
+        sendSfx('timeout');
+      }
+      if (forcedTimeout) {
         const active = stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
         if (active) {
           stones = stones.map(s => s.id === active.id ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 } : s);
@@ -1538,6 +1591,8 @@
       }
       activateNextStone(turn);
       resetTurnClock();
+      playTurnSound();
+      sendSfx('turn');
       updateHud();
       broadcastState();
     }
@@ -1610,9 +1665,15 @@
       aimBadge.textContent = canControlTurn() ? activeStoneLabel() : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다');
     }
 
+    function shouldFlipBoard() {
+      return Boolean(conn && myTeam === 'orange');
+    }
+
     function getCanvasPos(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      return { x: (clientX - rect.left) * (canvas.width / rect.width), y: (clientY - rect.top) * (canvas.height / rect.height) };
+      const x = (clientX - rect.left) * (canvas.width / rect.width);
+      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      return shouldFlipBoard() ? { x: BOARD_W - x, y: BOARD_H - y } : { x, y };
     }
 
     function currentStatePayload(extra = {}) {
@@ -1646,6 +1707,7 @@
     }
 
     function sendMessage(data) { if (conn && conn.open) conn.send(data); }
+    function sendSfx(kind, data = {}) { if (conn && conn.open) sendMessage({ type: 'sfx', kind, ...data }); }
     function broadcastState(extra = {}) { if (!isHost || !conn || !conn.open) return; sendMessage(currentStatePayload(extra)); }
 
     function setConnectionHandlers(connection) {
@@ -1680,7 +1742,14 @@
           return;
         }
         if (data.type === 'state' && !isHost) { applyRemoteState(data); return; }
-        if (data.type === 'sfx' && data.kind === 'collision') { playCollisionSound(data.volume || 0.5); return; }
+        if (data.type === 'sfx') {
+          if (data.kind === 'collision') playCollisionSound(data.volume || 0.5);
+          else if (data.kind === 'turn') playTurnSound();
+          else if (data.kind === 'timeout') playTimeoutSound();
+          else if (data.kind === 'power') playPowerLaunchSound(data.powerType);
+          else if (data.kind === 'explosion') playExplosionSound();
+          return;
+        }
         if (data.type === 'launch' && isHost) {
           const { stoneId, vx, vy } = data;
           stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
@@ -1791,7 +1860,10 @@
     function launchStone(stoneId, vx, vy) {
       const launchedStone = stones.find(s => s.id === stoneId);
       if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) matchStats.shots += 1;
-      if (launchedStone?.special && !launchedStone.launched) playPowerLaunchSound(launchedStone.special);
+      if (launchedStone?.special && !launchedStone.launched) {
+        playPowerLaunchSound(launchedStone.special);
+        sendSfx('power', { powerType: launchedStone.special });
+      }
       stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
@@ -2123,7 +2195,18 @@
       ctx.restore();
     }
 
-    function draw() { ctx.clearRect(0, 0, BOARD_W, BOARD_H); drawBoard(); }
+    function draw() {
+      ctx.clearRect(0, 0, BOARD_W, BOARD_H);
+      if (shouldFlipBoard()) {
+        ctx.save();
+        ctx.translate(BOARD_W, BOARD_H);
+        ctx.rotate(Math.PI);
+        drawBoard();
+        ctx.restore();
+      } else {
+        drawBoard();
+      }
+    }
 
     function step() {
       if (phase === 'playing' && (!conn || isHost)) {
@@ -2190,10 +2273,7 @@
     claimGoldBtn.addEventListener('click', claimGoldNow);
     buySparkleBtn.addEventListener('click', buySparkleTrail);
 
-    stoneSkinList.addEventListener('click', (e) => {
-      const button = e.target.closest('[data-skin]');
-      if (!button) return;
-      const nextSkin = button.dataset.skin;
+    function chooseStoneSkin(nextSkin) {
       if (!STONE_SKINS.some(skin => skin.id === nextSkin)) return;
       stoneSkin = nextSkin;
       localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
@@ -2204,7 +2284,16 @@
       draw();
       sendMessage({ type: 'skin_update', team: myTeam, stoneSkin });
       if (isHost) broadcastState();
-    });
+    }
+
+    function handleSkinPick(e) {
+      const button = e.target.closest('[data-skin]');
+      if (!button) return;
+      chooseStoneSkin(button.dataset.skin);
+    }
+
+    stoneSkinList.addEventListener('click', handleSkinPick);
+    lobbyStoneSkinList.addEventListener('click', handleSkinPick);
 
     cpuStyleSelect.addEventListener('change', () => {
       cpuStyle = cpuStyleSelect.value || 'precise';
