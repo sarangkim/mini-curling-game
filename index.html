@@ -129,6 +129,10 @@
     .title-row.locked { opacity: .72; }
     .score-breakdown { margin-top: 8px; }
     .score-line { font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .wallet-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .wallet-box { padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe; }
+    .shop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .shop-actions button { min-height: 42px; font-size: 13px; }
     .skin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
     .skin-option {
       min-height: 74px; padding: 8px; border-radius: 16px; border: 1px solid #bfdbfe;
@@ -298,10 +302,29 @@
         </div>
 
         <div class="stats">
-          <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">4</div></div>
-          <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">4</div></div>
+          <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">5</div></div>
+          <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">5</div></div>
           <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
           <div class="card"><div class="label">Players</div><div class="value" id="gamePlayersText">1 / 2</div></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px;">
+          <div class="card stack">
+            <div class="label">상점</div>
+            <div class="wallet-row">
+              <div class="wallet-box"><div class="label">Gold</div><div class="value" id="goldText">300G</div></div>
+              <div class="wallet-box"><div class="label">Star</div><div class="value" id="starText">0</div></div>
+            </div>
+            <div class="small" id="walletHint">경기 신청에는 100G가 필요합니다. 골드는 시간이 지나면 회복됩니다.</div>
+            <div class="shop-actions">
+              <button id="claimGoldBtn" class="ghost">골드 회복</button>
+              <button id="buySparkleBtn" class="ghost">반짝임 구매</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="label">파워스톤</div>
+            <div class="small">각 팀에 랜덤 파워스톤 1개가 나옵니다. 파랑은 빠르게 튀고, 빨강은 끌고 가고, 검정은 처음 닿은 스톤을 폭발시키고, 초록은 잘 멈춥니다.</div>
+          </div>
         </div>
 
         <div class="grid-2" style="margin-top:12px;">
@@ -335,6 +358,13 @@
     const OUTER_RING_R = SCORING_R, MIDDLE_RING_R = SCORING_R * 0.66, INNER_RING_R = SCORING_R * 0.3;
     const MAX_POWER = 5.8, FRICTION = 0.992, MIN_SPEED = 0.05, BOUNCE = 0.985;
     const POWER_STONE_FORCE = 1.62, POWER_STONE_MAX_POWER = 8.2;
+    const STONES_PER_TEAM = 5, ENTRY_FEE_GOLD = 100, GOLD_REGEN_MS = 10 * 60 * 1000, GOLD_REGEN_AMOUNT = 20, MAX_FREE_GOLD = 500;
+    const POWER_TYPES = [
+      { id: 'speed', label: '스피드', color: '#38bdf8', mark: 'S' },
+      { id: 'magnet', label: '자석', color: '#ef4444', mark: 'M' },
+      { id: 'bomb', label: '폭탄', color: '#111827', mark: 'B' },
+      { id: 'sticky', label: '끈끈이', color: '#22c55e', mark: 'G' }
+    ];
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
@@ -432,6 +462,11 @@
     const leaderboardEl = $('leaderboard');
     const dailyMissionList = $('dailyMissionList');
     const titleList = $('titleList');
+    const goldText = $('goldText');
+    const starText = $('starText');
+    const walletHint = $('walletHint');
+    const claimGoldBtn = $('claimGoldBtn');
+    const buySparkleBtn = $('buySparkleBtn');
     const powerFill = $('powerFill');
     const aimBadge = $('aimBadge');
     const resultOverlay = $('resultOverlay');
@@ -463,6 +498,7 @@
     let prevWallContacts = new Set();
     let pairContacts = new Set();
     let wallContacts = new Set();
+    let magnetLinks = new Map();
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
     let stoneSkin = localStorage.getItem('miniCurlingStoneSkin') || 'classic';
@@ -470,6 +506,7 @@
     let firebaseAuth = null;
     let firebaseDb = null;
     let teamSkins = { blue: stoneSkin, orange: 'classic' };
+    let sparkleFxEnabled = false;
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
     let stones = [];
@@ -580,6 +617,36 @@
       tone(196, t + 0.52, 0.36, 'sine', 0.075);
     }
 
+    function playPowerLaunchSound(type) {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      if (type === 'speed') {
+        tone(880, t, 0.12, 'square', 0.10);
+        tone(1320, t + 0.10, 0.16, 'square', 0.08);
+      } else if (type === 'magnet') {
+        tone(220, t, 0.22, 'sawtooth', 0.09);
+        tone(330, t + 0.12, 0.28, 'sawtooth', 0.08);
+      } else if (type === 'bomb') {
+        tone(110, t, 0.18, 'sawtooth', 0.14);
+        tone(55, t + 0.12, 0.35, 'sawtooth', 0.12);
+      } else if (type === 'sticky') {
+        tone(330, t, 0.18, 'triangle', 0.09);
+        tone(247, t + 0.16, 0.20, 'triangle', 0.08);
+      }
+    }
+
+    function playExplosionSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.01;
+      tone(88, t, 0.18, 'sawtooth', 0.18);
+      tone(55, t + 0.08, 0.34, 'sawtooth', 0.14);
+      tone(176, t + 0.16, 0.16, 'square', 0.08);
+    }
+
     function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
     function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
@@ -599,19 +666,28 @@
     function makeInitialStones() {
       const laneYTop = TABLE_MARGIN + 92;
       const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
-      const startXs = [240, 320, 400, 480];
-      const bluePowerIndex = 1 + Math.floor(Math.random() * (startXs.length - 1));
-      const orangePowerIndex = 1 + Math.floor(Math.random() * (startXs.length - 1));
+      const startXs = [200, 280, 360, 440, 520];
+      const bluePowerIndex = Math.floor(Math.random() * startXs.length);
+      const orangePowerIndex = Math.floor(Math.random() * startXs.length);
+      const bluePower = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)].id;
+      const orangePower = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)].id;
       return [
-        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: n === orangePowerIndex ? 'power' : '' })),
-        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: n === bluePowerIndex ? 'power' : '' })),
+        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: n === orangePowerIndex ? orangePower : '', usedPower: false })),
+        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: n === bluePowerIndex ? bluePower : '', usedPower: false })),
       ];
     }
 
-    function stoneForce(stone) { return stone.special === 'power' ? POWER_STONE_FORCE : 1; }
+    function powerInfo(type) { return POWER_TYPES.find(p => p.id === type); }
+    function stoneForce(stone) {
+      if (stone.special === 'magnet') return 1.75;
+      if (stone.special === 'speed') return 0.82;
+      if (stone.special === 'sticky') return 1.15;
+      return stone.special ? POWER_STONE_FORCE : 1;
+    }
     function activeStoneLabel() {
       const stone = activeStoneForTurn();
-      return stone?.special === 'power' ? '파워 스톤 · 충돌 밀어내기 강화' : '당겨서 조준';
+      const info = powerInfo(stone?.special);
+      return info ? `${info.label} 파워스톤 · 당겨서 조준` : '남은 스톤을 골라 당겨서 조준';
     }
     function stoppingPowerForDistance(distance) {
       return Math.max(0.55, distance * (1 - FRICTION) + MIN_SPEED);
@@ -687,7 +763,10 @@
     function getNextTurn() { return turn === 'blue' ? 'orange' : 'blue'; }
     function isAIMode() { return !conn && turn === 'orange'; }
     function canControlTurn() { return phase === 'playing' && !isAIMode() && (!conn || myTeam === turn); }
-    function activeStoneForTurn() { return stones.find(s => s.active && s.team === turn && !s.launched && !s.out); }
+    function activeStoneForTurn() {
+      return stones.find(s => s.active && s.team === turn && !s.launched && !s.out)
+        || stones.find(s => s.team === turn && !s.launched && !s.out);
+    }
 
     function makeInviteLink() {
       if (!roomCode) return '';
@@ -798,6 +877,10 @@
           const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
           a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
           b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
+          if (!prevPairContacts.has(pairKey)) {
+            const skipped = triggerPowerCollision(a, b, nx, ny) || triggerPowerCollision(b, a, -nx, -ny);
+            if (skipped) continue;
+          }
           const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
           if (relVel > 0) continue;
           const forceBias = stoneForce(a) / stoneForce(b);
@@ -811,6 +894,57 @@
           a.vx += -impulse * nx / forceBias; a.vy += -impulse * ny / forceBias;
           b.vx += impulse * nx * forceBias; b.vy += impulse * ny * forceBias;
         }
+      }
+    }
+
+    function triggerPowerCollision(power, other, nx, ny) {
+      if (!power.special || power.usedPower || !power.launched || power.out || other.out) return false;
+      power.usedPower = true;
+      const impactX = (power.x + other.x) / 2;
+      const impactY = (power.y + other.y) / 2;
+      const info = powerInfo(power.special);
+      spawnParticles(impactX, impactY, info?.color || '#ffffff', 1.3);
+      if (power.special === 'bomb') {
+        other.out = true;
+        other.x = -999;
+        other.y = -999;
+        other.vx = 0;
+        other.vy = 0;
+        playExplosionSound();
+        vibrate(45);
+        return true;
+      }
+      if (power.special === 'magnet') {
+        const offset = STONE_R * 2.05;
+        magnetLinks.set(other.id, { leaderId: power.id, followerId: other.id, dx: nx * offset, dy: ny * offset, life: 120 });
+        other.vx = power.vx * 0.96;
+        other.vy = power.vy * 0.96;
+      } else if (power.special === 'sticky') {
+        power.vx *= 0.35;
+        power.vy *= 0.35;
+        other.vx *= 0.35;
+        other.vy *= 0.35;
+      } else if (power.special === 'speed') {
+        power.vx *= 1.18;
+        power.vy *= 1.18;
+      }
+      return false;
+    }
+
+    function applyMagnetLinks() {
+      for (const [key, link] of [...magnetLinks.entries()]) {
+        const leader = stones.find(s => s.id === link.leaderId);
+        const follower = stones.find(s => s.id === link.followerId);
+        if (!leader || !follower || leader.out || follower.out || link.life <= 0 || (Math.abs(leader.vx) < MIN_SPEED && Math.abs(leader.vy) < MIN_SPEED)) {
+          magnetLinks.delete(key);
+          continue;
+        }
+        follower.x = leader.x + link.dx;
+        follower.y = leader.y + link.dy;
+        follower.vx = leader.vx * 0.92;
+        follower.vy = leader.vy * 0.92;
+        clampInTable(follower);
+        link.life -= 1;
       }
     }
 
@@ -1038,11 +1172,76 @@
       return { index, label: RANK_LABELS[index], key: RANK_LABELS[index] };
     }
 
-    function ratingDelta(result, summary) {
-      const scoreGap = Math.min(8, Math.floor(Math.abs(summary.myScore - summary.opponentScore) / 10));
-      if (result === 'win') return 14 + scoreGap;
-      if (result === 'draw') return 2;
-      return -(10 + scoreGap);
+    function applyWalletRegen(profile) {
+      let changed = false;
+      const now = Date.now();
+      if (!profile.lastGoldAt) {
+        profile.lastGoldAt = now;
+        changed = true;
+      }
+      const ticks = Math.floor((now - profile.lastGoldAt) / GOLD_REGEN_MS);
+      if (ticks > 0 && profile.gold < MAX_FREE_GOLD) {
+        profile.gold = Math.min(MAX_FREE_GOLD, profile.gold + ticks * GOLD_REGEN_AMOUNT);
+        profile.lastGoldAt += ticks * GOLD_REGEN_MS;
+        changed = true;
+      }
+      if (profile.lastStarDate !== todayKey()) {
+        profile.stars += 1;
+        profile.lastStarDate = todayKey();
+        changed = true;
+      }
+      return changed;
+    }
+
+    function spendEntryFee() {
+      const profile = loadProfile();
+      const changed = applyWalletRegen(profile);
+      if (profile.gold < ENTRY_FEE_GOLD) {
+        if (changed) saveProfile(profile);
+        showOverlay('골드가 부족합니다', `경기 신청에는 ${ENTRY_FEE_GOLD}G가 필요합니다. 골드 회복을 누르거나 잠시 후 다시 시도해 주세요.`);
+        renderProgress();
+        return false;
+      }
+      profile.gold -= ENTRY_FEE_GOLD;
+      saveProfile(profile);
+      renderProgress();
+      return true;
+    }
+
+    function claimGoldNow() {
+      const profile = loadProfile();
+      applyWalletRegen(profile);
+      profile.gold = Math.min(MAX_FREE_GOLD, profile.gold + GOLD_REGEN_AMOUNT);
+      profile.lastGoldAt = Date.now();
+      saveProfile(profile);
+      renderProgress();
+    }
+
+    function buySparkleTrail() {
+      const profile = loadProfile();
+      applyWalletRegen(profile);
+      if (profile.sparkleFx) {
+        showOverlay('이미 보유 중', '내 스톤이 움직일 때 추가 반짝임이 적용되어 있습니다.');
+        return;
+      }
+      if (profile.stars < 3) {
+        showOverlay('별이 부족합니다', '반짝임 아이템은 별 3개가 필요합니다. 매일 접속하면 별을 받을 수 있습니다.');
+        return;
+      }
+      profile.stars -= 3;
+      profile.sparkleFx = true;
+      saveProfile(profile);
+      renderProgress();
+      showOverlay('아이템 구매 완료', '이제 내 일반 스톤도 움직일 때 살짝 반짝입니다.');
+    }
+
+    function ratingDelta(result, summary, profile) {
+      const playerRating = profile?.rating || 1000;
+      const opponentRating = 1000;
+      const actual = result === 'win' ? 1 : (result === 'draw' ? 0.5 : 0);
+      const expected = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+      const marginBonus = Math.min(1.25, 1 + Math.abs(summary.myScore - summary.opponentScore) / 100);
+      return Math.round(32 * marginBonus * (actual - expected));
     }
 
     function recordText(wins, draws, losses) {
@@ -1069,7 +1268,8 @@
         games: 0, wins: 0, draws: 0, losses: 0, rankPoints: 0, rating: 1000,
         currentRankKey: '', rankWins: 0, rankDraws: 0, rankLosses: 0, pointsScored: 0,
         centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
-        onlineGames: 0, missionsCompleted: 0, unlockedTitles: []
+        onlineGames: 0, missionsCompleted: 0, unlockedTitles: [],
+        gold: 300, stars: 0, lastGoldAt: Date.now(), lastStarDate: '', sparkleFx: false
       };
       try {
         const profile = { ...defaults, ...JSON.parse(localStorage.getItem(storageKey('miniCurlingProfile')) || '{}') };
@@ -1125,7 +1325,7 @@
       profile.shutouts += summary.opponentScore === 0 ? 1 : 0;
       profile.onlineGames += summary.isOnline ? 1 : 0;
       profile.rankPoints = Math.max(0, profile.rankPoints + (result === 'win' ? 12 : result === 'draw' ? 5 : 2));
-      profile.rating = Math.max(800, Math.min(1999, profile.rating + ratingDelta(result, summary)));
+      profile.rating = Math.max(800, Math.min(1999, profile.rating + ratingDelta(result, summary, profile)));
       const newRank = rankFromRating(profile.rating);
       if (profile.currentRankKey !== newRank.key) {
         profile.currentRankKey = newRank.key;
@@ -1158,6 +1358,13 @@
       currentMissions = getDailyMissions();
       const progress = loadDailyProgress();
       const profile = loadProfile();
+      if (applyWalletRegen(profile)) saveProfile(profile);
+      sparkleFxEnabled = Boolean(profile.sparkleFx);
+      goldText.textContent = `${profile.gold}G`;
+      starText.textContent = `${profile.stars}`;
+      walletHint.textContent = profile.sparkleFx
+        ? `경기 신청 ${ENTRY_FEE_GOLD}G · 반짝임 보유 중 · 골드는 10분마다 ${GOLD_REGEN_AMOUNT}G 회복됩니다.`
+        : `경기 신청 ${ENTRY_FEE_GOLD}G · 별 3개로 반짝임을 살 수 있습니다. 골드는 10분마다 ${GOLD_REGEN_AMOUNT}G 회복됩니다.`;
       const rank = rankFromRating(profile.rating);
       applyRankTheme(profile);
       dailyMissionList.innerHTML = currentMissions.map(mission => {
@@ -1343,6 +1550,7 @@
       score = { blue: 0, orange: 0 };
       matchStats = { shots: 0, wallHits: 0 };
       particles = [];
+      magnetLinks.clear();
       resultText.textContent = 'Ready';
       if (timerId) clearInterval(timerId);
       timerId = null;
@@ -1356,7 +1564,8 @@
       broadcastState();
     }
 
-    function startGame() {
+    function startGame(chargeEntry = true) {
+      if (chargeEntry && !spendEntryFee()) return false;
       resetGame();
       phase = 'playing';
       resultText.textContent = 'Playing';
@@ -1376,6 +1585,7 @@
       }, 1000);
       updateHud();
       broadcastState();
+      return true;
     }
 
     function updateHud() {
@@ -1477,9 +1687,9 @@
           broadcastState();
           return;
         }
-        if (data.type === 'start' && !isHost) { startGame(); return; }
+        if (data.type === 'start' && !isHost) { startGame(false); return; }
         if (data.type === 'reset') { resetGame(); return; }
-        if (data.type === 'rematch') { startGame(); return; }
+        if (data.type === 'rematch') { startGame(false); return; }
       });
       conn.on('close', () => {
         conn = null;
@@ -1581,6 +1791,7 @@
     function launchStone(stoneId, vx, vy) {
       const launchedStone = stones.find(s => s.id === stoneId);
       if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) matchStats.shots += 1;
+      if (launchedStone?.special && !launchedStone.launched) playPowerLaunchSound(launchedStone.special);
       stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
@@ -1658,8 +1869,8 @@
 
     function performAIShot() {
       if (conn || phase !== 'playing' || turn !== 'orange') return;
-      const stone = activeStoneForTurn();
-      if (!stone || !allStopped()) return;
+      const candidateStones = stones.filter(s => s.team === 'orange' && !s.launched && !s.out);
+      if (!candidateStones.length || !allStopped()) return;
 
       const style = cpuStyle || 'precise';
       let best = null;
@@ -1689,44 +1900,51 @@
         addShot(CENTER_X + 42, CENTER_Y - 56, 'guard');
       }
 
-      for (const target of targetShots) {
-        const dx = target.x - stone.x;
-        const dy = target.y - stone.y;
-        const len = Math.hypot(dx, dy) || 1;
-        const basePower = stoppingPowerForDistance(len);
-        const scales = target.plan === 'hit' ? [0.95, 1.05, 1.15, 1.25] : target.plan === 'guard' ? [0.72, 0.8, 0.88, 0.96] : [0.82, 0.9, 0.98, 1.04];
-        for (const scale of scales) {
-          const cap = target.plan === 'hit' ? CPU_HIT_MAX_POWER : CPU_SETTLE_MAX_POWER;
-          const power = Math.min(cap, Math.max(0.55, basePower * scale));
-          const vx = (dx / len) * power;
-          const vy = (dy / len) * power;
-          const sim = simulateCpuShot(stone, vx, vy);
-          const settleDistance = Math.hypot(sim.x - target.x, sim.y - target.y);
-          let weightedScore = sim.orangeScore * 18 - sim.blueScore * 20 + sim.score;
+      for (const shotStone of candidateStones) {
+        for (const target of targetShots) {
+          const dx = target.x - shotStone.x;
+          const dy = target.y - shotStone.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const basePower = stoppingPowerForDistance(len);
+          const scales = target.plan === 'hit' ? [0.95, 1.05, 1.15, 1.25] : target.plan === 'guard' ? [0.72, 0.8, 0.88, 0.96] : [0.82, 0.9, 0.98, 1.04];
+          for (const scale of scales) {
+            const cap = target.plan === 'hit' ? CPU_HIT_MAX_POWER : CPU_SETTLE_MAX_POWER;
+            const power = Math.min(cap, Math.max(0.55, basePower * scale));
+            const vx = (dx / len) * power;
+            const vy = (dy / len) * power;
+            const sim = simulateCpuShot(shotStone, vx, vy);
+            const settleDistance = Math.hypot(sim.x - target.x, sim.y - target.y);
+            let weightedScore = sim.orangeScore * 18 - sim.blueScore * 20 + sim.score;
 
-          if (style === 'aggressive') {
-            weightedScore += (beforeBlueScore - sim.blueScore) * 32;
-            weightedScore += sim.pushedBlue * 0.12;
-            weightedScore += target.plan === 'hit' ? 22 : 0;
-            if (target.plan !== 'hit') weightedScore -= settleDistance * 1.35;
-          } else if (style === 'defensive') {
-            weightedScore += target.plan === 'guard' ? Math.max(0, 95 - settleDistance) : 0;
-            weightedScore += sim.blueScore === 0 ? 18 : 0;
-            weightedScore -= settleDistance * (target.plan === 'guard' ? 1.1 : 0.75);
-          } else {
-            weightedScore += stoneScore({ ...stone, x: sim.x, y: sim.y, out: false }) === 30 ? 28 : 0;
-            weightedScore -= settleDistance * 1.25;
-            weightedScore -= Math.abs(sim.x - CENTER_X) * 0.015;
+            if (style === 'aggressive') {
+              weightedScore += (beforeBlueScore - sim.blueScore) * 32;
+              weightedScore += sim.pushedBlue * 0.12;
+              weightedScore += target.plan === 'hit' ? 22 : 0;
+              if (target.plan !== 'hit') weightedScore -= settleDistance * 1.35;
+            } else if (style === 'defensive') {
+              weightedScore += target.plan === 'guard' ? Math.max(0, 95 - settleDistance) : 0;
+              weightedScore += sim.blueScore === 0 ? 18 : 0;
+              weightedScore -= settleDistance * (target.plan === 'guard' ? 1.1 : 0.75);
+            } else {
+              weightedScore += stoneScore({ ...shotStone, x: sim.x, y: sim.y, out: false }) === 30 ? 28 : 0;
+              weightedScore -= settleDistance * 1.25;
+              weightedScore -= Math.abs(sim.x - CENTER_X) * 0.015;
+            }
+
+            if (shotStone.special === 'bomb' && target.plan !== 'hit') weightedScore -= 18;
+            if (shotStone.special === 'magnet' && target.plan === 'hit') weightedScore += 16;
+            if (shotStone.special === 'sticky' && target.plan === 'score') weightedScore += 12;
+            if (shotStone.special === 'speed' && target.plan === 'hit') weightedScore += 10;
+            weightedScore -= power * (target.plan === 'hit' ? 2.2 : 9.5);
+            const candidate = { stoneId: shotStone.id, vx, vy, score: weightedScore, power, plan: target.plan };
+            if (!best || candidate.score > best.score) best = candidate;
           }
-
-          weightedScore -= power * (target.plan === 'hit' ? 2.2 : 9.5);
-          const candidate = { vx, vy, score: weightedScore, power, plan: target.plan };
-          if (!best || candidate.score > best.score) best = candidate;
         }
       }
 
       if (!best) return;
-      launchStone(stone.id, best.vx, best.vy);
+      stones = stones.map(s => ({ ...s, active: s.id === best.stoneId }));
+      launchStone(best.stoneId, best.vx, best.vy);
     }
 
     canvas.addEventListener('pointerdown', (e) => {
@@ -1734,8 +1952,11 @@
       if (phase !== 'playing' || !canControlTurn()) return;
       e.preventDefault();
       const p = getCanvasPos(e.clientX, e.clientY);
-      const stone = activeStoneForTurn();
+      const stone = stones.find(s => s.team === turn && !s.launched && !s.out && Math.hypot(p.x - s.x, p.y - s.y) <= STONE_R + 8);
       if (stone && Math.hypot(p.x - stone.x, p.y - stone.y) <= STONE_R + 8) {
+        stones = stones.map(s => ({ ...s, active: s.id === stone.id }));
+        updateHud();
+        draw();
         canvas.setPointerCapture?.(e.pointerId);
         drag = { stoneId: stone.id, startX: stone.x, startY: stone.y, currentX: p.x, currentY: p.y };
       }
@@ -1750,10 +1971,11 @@
       const dx = drag.currentX - drag.startX, dy = drag.currentY - drag.startY;
       const len = Math.hypot(dx, dy);
       const stone = stones.find(s => s.id === drag.stoneId);
-      const maxPower = stone?.special === 'power' ? POWER_STONE_MAX_POWER : MAX_POWER;
+      const maxPower = stone?.special ? POWER_STONE_MAX_POWER : MAX_POWER;
       const powerPct = Math.min(100, (len / (maxPower * 22)) * 100);
       powerFill.style.height = `${powerPct}%`;
-      aimBadge.textContent = `${stone?.special === 'power' ? 'Power Stone' : 'Power'} ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
+      const label = stone?.special ? `${powerInfo(stone.special)?.label || 'Power'} Stone` : 'Power';
+      aimBadge.textContent = `${label} ${Math.round(powerPct)}% · ${turn.toUpperCase()} turn`;
     });
 
     function releaseDrag(e) {
@@ -1766,7 +1988,7 @@
       aimBadge.textContent = canControlTurn() ? activeStoneLabel() : '상대 차례입니다';
       if (len < 8) return;
       const stone = stones.find(s => s.id === stoneId);
-      const maxPower = stone?.special === 'power' ? POWER_STONE_MAX_POWER : MAX_POWER;
+      const maxPower = stone?.special ? POWER_STONE_MAX_POWER : MAX_POWER;
       const power = Math.min(maxPower, len / 22);
       launchStone(stoneId, (dx / len) * power, (dy / len) * power);
     }
@@ -1886,9 +2108,10 @@
         ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R, 0, Math.PI * 2); ctx.fillStyle = COLORS[s.team]; ctx.fill();
         ctx.lineWidth = s.active ? 5 : 2; ctx.strokeStyle = s.active ? '#ffffff' : 'rgba(255,255,255,0.55)'; ctx.stroke();
         drawStoneSkin(s);
-        if (s.special === 'power') {
-          ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
-          ctx.fillStyle = '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P', s.x, s.y + 1);
+        if (s.special) {
+          const info = powerInfo(s.special);
+          ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = info?.color || '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
+          ctx.fillStyle = info?.color || '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(info?.mark || 'P', s.x, s.y + 1);
         }
         ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
       }
@@ -1910,12 +2133,17 @@
           if (s.out) return s;
           const next = { ...s };
           next.x += next.vx; next.y += next.vy;
-          next.vx *= FRICTION; next.vy *= FRICTION;
+          const friction = next.special === 'speed' && next.launched ? 0.996 : (next.special === 'sticky' && next.launched ? 0.975 : FRICTION);
+          next.vx *= friction; next.vy *= friction;
+          if (next.launched && (next.special || (sparkleFxEnabled && next.team === myTeam)) && Math.random() < 0.28 && (Math.abs(next.vx) + Math.abs(next.vy) > 0.5)) {
+            spawnParticles(next.x, next.y, powerInfo(next.special)?.color || 'rgba(96,165,250,0.85)', 0.28);
+          }
           if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
           if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
           return clampInTable(next);
         });
         resolveStoneCollisions();
+        applyMagnetLinks();
         const stopped = allStopped();
         const hasActiveUnlaunched = stones.some(s => s.active && !s.launched && !s.out);
         if (stopped && !hasActiveUnlaunched) {
@@ -1959,6 +2187,8 @@
     });
 
     googleSignInBtn.addEventListener('click', signInWithGoogle);
+    claimGoldBtn.addEventListener('click', claimGoldNow);
+    buySparkleBtn.addEventListener('click', buySparkleTrail);
 
     stoneSkinList.addEventListener('click', (e) => {
       const button = e.target.closest('[data-skin]');
@@ -1996,13 +2226,13 @@
       localStorage.setItem('miniCurlingCpuStyle', cpuStyle);
       teardownRoom();
       enterGameScreen('CPU와 대전이 시작되었습니다.');
-      startGame();
+      if (!startGame()) enterEntryScreen();
     });
     backToLobbyBtn.addEventListener('click', () => { if (roomCode) enterLobbyScreen(); else enterEntryScreen(); });
     startBtn.addEventListener('click', () => {
       unlockAudio();
       if (conn && !isHost) return;
-      startGame();
+      if (!startGame()) return;
       if (conn && isHost) sendMessage({ type: 'start' });
     });
     rematchBtn.addEventListener('click', () => {
@@ -2015,7 +2245,7 @@
           resultOverlay.classList.add('show');
           return;
         }
-        startGame();
+        if (!startGame()) return;
         sendMessage({ type: 'rematch' });
         return;
       }
