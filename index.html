@@ -322,7 +322,16 @@
       { id: 'smile', name: '스마일', mark: '^^', accent: '#fef08a' },
       { id: 'focus', name: '집중', mark: '!!', accent: '#bfdbfe' },
       { id: 'spark', name: '스파크', mark: '*', accent: '#fde68a' },
-      { id: 'crown', name: '크라운', mark: 'W', accent: '#fcd34d' }
+      { id: 'crown', name: '크라운', mark: 'W', accent: '#fcd34d' },
+      { id: 'cat', name: '고양이', mark: '냥', accent: '#fde68a' },
+      { id: 'dog', name: '강아지', mark: '멍', accent: '#fed7aa' },
+      { id: 'sheep', name: '양', mark: '양', accent: '#f8fafc' },
+      { id: 'monkey', name: '원숭이', mark: '몽', accent: '#d6a66a' },
+      { id: 'pig', name: '돼지', mark: '꿀', accent: '#fbcfe8' }
+    ];
+    const RANK_LABELS = [
+      '18급','17급','16급','15급','14급','13급','12급','11급','10급','9급','8급','7급','6급','5급','4급','3급','2급','1급',
+      '1단','2단','3단','4단','5단','6단','7단','8단','9단'
     ];
     const MISSION_REWARD = 25;
     const MISSION_POOL = [
@@ -820,13 +829,49 @@
       localStorage.setItem('miniCurlingDailyProgress', JSON.stringify(progress));
     }
 
+    function rankFromRating(rating) {
+      const index = Math.max(0, Math.min(RANK_LABELS.length - 1, Math.floor((rating - 1000) / 35)));
+      return { index, label: RANK_LABELS[index], key: RANK_LABELS[index] };
+    }
+
+    function ratingDelta(result, summary) {
+      const scoreGap = Math.min(8, Math.floor(Math.abs(summary.myScore - summary.opponentScore) / 10));
+      if (result === 'win') return 14 + scoreGap;
+      if (result === 'draw') return 2;
+      return -(10 + scoreGap);
+    }
+
+    function recordText(wins, draws, losses) {
+      return `${wins}승 ${draws}무 ${losses}패`;
+    }
+
+    function applyRankTheme(profile = loadProfile()) {
+      const rank = rankFromRating(profile.rating);
+      let theme;
+      if (rank.index >= 22) {
+        theme = 'radial-gradient(circle at top left, rgba(250, 204, 21, 0.34), transparent 34%), linear-gradient(180deg, #fffdf4 0%, #e0f2fe 52%, #bfdbfe 100%)';
+      } else if (rank.index >= 18) {
+        theme = 'radial-gradient(circle at top left, rgba(56, 189, 248, 0.32), transparent 34%), linear-gradient(180deg, #f8fcff 0%, #dbeafe 48%, #93c5fd 100%)';
+      } else if (rank.index >= 10) {
+        theme = 'radial-gradient(circle at top left, rgba(45, 212, 191, 0.22), transparent 34%), linear-gradient(180deg, #f8fcff 0%, #e0f2fe 48%, #bae6fd 100%)';
+      } else {
+        theme = 'radial-gradient(circle at top left, rgba(59, 130, 246, 0.24), transparent 34%), linear-gradient(180deg, #f8fcff 0%, #e0f2fe 48%, #bfdbfe 100%)';
+      }
+      document.body.style.backgroundImage = theme;
+    }
+
     function loadProfile() {
       const defaults = {
-        games: 0, wins: 0, draws: 0, losses: 0, rankPoints: 0, pointsScored: 0,
+        games: 0, wins: 0, draws: 0, losses: 0, rankPoints: 0, rating: 1000,
+        currentRankKey: '', rankWins: 0, rankDraws: 0, rankLosses: 0, pointsScored: 0,
         centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: []
       };
-      try { return { ...defaults, ...JSON.parse(localStorage.getItem('miniCurlingProfile') || '{}') }; }
+      try {
+        const profile = { ...defaults, ...JSON.parse(localStorage.getItem('miniCurlingProfile') || '{}') };
+        if (!profile.currentRankKey) profile.currentRankKey = rankFromRating(profile.rating).key;
+        return profile;
+      }
       catch { return defaults; }
     }
 
@@ -875,6 +920,17 @@
       profile.shutouts += summary.opponentScore === 0 ? 1 : 0;
       profile.onlineGames += summary.isOnline ? 1 : 0;
       profile.rankPoints = Math.max(0, profile.rankPoints + (result === 'win' ? 12 : result === 'draw' ? 5 : 2));
+      profile.rating = Math.max(800, Math.min(1999, profile.rating + ratingDelta(result, summary)));
+      const newRank = rankFromRating(profile.rating);
+      if (profile.currentRankKey !== newRank.key) {
+        profile.currentRankKey = newRank.key;
+        profile.rankWins = 0;
+        profile.rankDraws = 0;
+        profile.rankLosses = 0;
+      }
+      profile.rankWins += result === 'win' ? 1 : 0;
+      profile.rankDraws += result === 'draw' ? 1 : 0;
+      profile.rankLosses += result === 'lose' ? 1 : 0;
 
       for (const mission of currentMissions) {
         if (!progress.completed[mission.id] && mission.test(summary)) {
@@ -888,6 +944,7 @@
       const newTitles = unlockTitles(profile);
       saveDailyProgress(progress);
       saveProfile(profile);
+      applyRankTheme(profile);
       renderProgress();
       return { completedMissions, newTitles, profile };
     }
@@ -896,6 +953,8 @@
       currentMissions = getDailyMissions();
       const progress = loadDailyProgress();
       const profile = loadProfile();
+      const rank = rankFromRating(profile.rating);
+      applyRankTheme(profile);
       dailyMissionList.innerHTML = currentMissions.map(mission => {
         const done = Boolean(progress.completed[mission.id]);
         return `
@@ -912,6 +971,14 @@
       const visibleTitles = TITLE_DEFS.filter(title => unlocked.has(title.id)).slice(-4);
       const lockedPreview = TITLE_DEFS.find(title => !unlocked.has(title.id));
       const rows = [
+        `<div class="title-row unlocked">
+          <div>
+            <div class="title-name">${escapeHtml(rank.label)} · 레이팅 ${profile.rating}</div>
+            <div class="small">전체 전적 ${recordText(profile.wins, profile.draws, profile.losses)}</div>
+            <div class="small">현등급 전적 ${recordText(profile.rankWins, profile.rankDraws, profile.rankLosses)}</div>
+          </div>
+          <div class="reward-badge">${rank.index >= 18 ? '단' : '급'}</div>
+        </div>`,
         `<div class="title-row unlocked">
           <div>
             <div class="title-name">누적 포인트 ${profile.rankPoints}</div>
@@ -1517,6 +1584,38 @@
         ctx.closePath(); ctx.fill();
         ctx.fillStyle = skin.accent;
         ctx.fillRect(-7, 3, 14, 3);
+      } else if (skin.id === 'cat') {
+        ctx.beginPath(); ctx.moveTo(-12, -9); ctx.lineTo(-6, -17); ctx.lineTo(-1, -9); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(12, -9); ctx.lineTo(6, -17); ctx.lineTo(1, -9); ctx.fill();
+        ctx.beginPath(); ctx.arc(-6, -2, 1.8, 0, Math.PI * 2); ctx.arc(6, -2, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-4, 6); ctx.moveTo(0, 2); ctx.lineTo(4, 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-12, 3); ctx.lineTo(-5, 4); ctx.moveTo(12, 3); ctx.lineTo(5, 4); ctx.stroke();
+      } else if (skin.id === 'dog') {
+        ctx.beginPath(); ctx.ellipse(-12, -4, 5, 9, -0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(12, -4, 5, 9, 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-6, -3, 1.8, 0, Math.PI * 2); ctx.arc(6, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 2, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 5, 6, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke();
+      } else if (skin.id === 'sheep') {
+        ctx.lineWidth = 2;
+        for (const p of [[-9,-8],[-3,-11],[4,-10],[10,-6],[-11,-2]]) {
+          ctx.beginPath(); ctx.arc(p[0], p[1], 4.5, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(-5, 2, 1.8, 0, Math.PI * 2); ctx.arc(5, 2, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 7, 5, 0.18 * Math.PI, 0.82 * Math.PI); ctx.stroke();
+      } else if (skin.id === 'monkey') {
+        ctx.beginPath(); ctx.arc(-14, -2, 5, 0, Math.PI * 2); ctx.arc(14, -2, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f6d6a8';
+        ctx.beginPath(); ctx.ellipse(0, 3, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1e3a8a';
+        ctx.beginPath(); ctx.arc(-5, -2, 1.8, 0, Math.PI * 2); ctx.arc(5, -2, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 5, 5, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+      } else if (skin.id === 'pig') {
+        ctx.beginPath(); ctx.moveTo(-11, -9); ctx.lineTo(-6, -15); ctx.lineTo(-2, -8); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(11, -9); ctx.lineTo(6, -15); ctx.lineTo(2, -8); ctx.fill();
+        ctx.beginPath(); ctx.arc(-6, -3, 1.8, 0, Math.PI * 2); ctx.arc(6, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 4, 7, 4.5, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-2, 4, 1.1, 0, Math.PI * 2); ctx.arc(2, 4, 1.1, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     }
