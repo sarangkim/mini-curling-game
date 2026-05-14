@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <link rel="icon" href="data:," />
   <title>Mini Curling Mobile Web v6</title>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore-compat.js"></script>
   <style>
     :root {
       --bg: #eaf6ff;
@@ -67,6 +70,10 @@
       min-height: 46px; padding: 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #bfdbfe;
       font-size: 13px; color: #1e293b; word-break: break-all; line-height: 1.5;
     }
+    .account-box { display: grid; gap: 10px; }
+    .account-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+    .account-avatar { width: 38px; height: 38px; border-radius: 999px; background: #dbeafe; border: 1px solid #bfdbfe; object-fit: cover; }
+    .google-button-wrap { min-height: 40px; display: flex; align-items: center; }
     .screen-title { font-size: 24px; margin-bottom: 6px; }
     .board-wrap {
       position: relative; margin-top: 12px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(37,99,235,0.22);
@@ -160,6 +167,22 @@
             <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
             <button id="saveNameBtn" class="ghost">저장</button>
           </div>
+        </div>
+
+        <div class="card account-box">
+          <div class="label">Google 로그인</div>
+          <div class="account-row" id="accountRow">
+            <div class="account-avatar" id="accountAvatar"></div>
+            <div>
+              <div class="title-name" id="accountName">게스트 플레이 중</div>
+              <div class="small" id="accountSubText">전적은 이 브라우저의 게스트 기록에 저장됩니다.</div>
+            </div>
+            <button id="signOutBtn" class="ghost" style="display:none; min-width:86px;">로그아웃</button>
+          </div>
+          <div class="google-button-wrap" id="googleButtonWrap">
+            <button id="googleSignInBtn" class="ghost">Google로 로그인</button>
+          </div>
+          <div class="small" id="googleLoginHint"></div>
         </div>
 
         <div class="card stack">
@@ -315,6 +338,15 @@
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 70, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
     const PEER_SCRIPT_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAiemmWWD71Y6gNhxREUoEhe28hodetSyE",
+      authDomain: "minicurling-451d4.firebaseapp.com",
+      projectId: "minicurling-451d4",
+      storageBucket: "minicurling-451d4.firebasestorage.app",
+      messagingSenderId: "629404952672",
+      appId: "1:629404952672:web:f49864cb859773579bfb05",
+      measurementId: "G-BE88DT19DB"
+    };
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const CPU_STYLE_LABELS = { precise: '정밀형', aggressive: '공격형', defensive: '수비형' };
@@ -372,6 +404,13 @@
     const backToLobbyBtn = $('backToLobbyBtn');
     const cpuStyleSelect = $('cpuStyleSelect');
     const playerNameInput = $('playerNameInput');
+    const accountAvatar = $('accountAvatar');
+    const accountName = $('accountName');
+    const accountSubText = $('accountSubText');
+    const googleButtonWrap = $('googleButtonWrap');
+    const googleSignInBtn = $('googleSignInBtn');
+    const googleLoginHint = $('googleLoginHint');
+    const signOutBtn = $('signOutBtn');
     const stoneSkinList = $('stoneSkinList');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
@@ -427,6 +466,9 @@
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
     let stoneSkin = localStorage.getItem('miniCurlingStoneSkin') || 'classic';
+    let firebaseUser = loadFirebaseUser();
+    let firebaseAuth = null;
+    let firebaseDb = null;
     let teamSkins = { blue: stoneSkin, orange: 'classic' };
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
@@ -773,16 +815,157 @@
     }
 
     function loadLeaderboard() {
-      try { return JSON.parse(localStorage.getItem('miniCurlingLeaderboard') || '[]'); }
+      try { return JSON.parse(localStorage.getItem(storageKey('miniCurlingLeaderboard')) || '[]'); }
       catch { return []; }
     }
 
     function saveLeaderboard(items) {
-      localStorage.setItem('miniCurlingLeaderboard', JSON.stringify(items.slice(0, 10)));
+      localStorage.setItem(storageKey('miniCurlingLeaderboard'), JSON.stringify(items.slice(0, 10)));
+      queueCloudSave({ leaderboard: items.slice(0, 10) });
     }
 
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function accountSuffix() {
+      return firebaseUser?.uid ? `:${firebaseUser.uid}` : '';
+    }
+
+    function storageKey(base) {
+      return `${base}${accountSuffix()}`;
+    }
+
+    function loadFirebaseUser() {
+      try { return JSON.parse(localStorage.getItem('miniCurlingFirebaseUser') || 'null'); }
+      catch { return null; }
+    }
+
+    function saveFirebaseUser(user) {
+      if (user) localStorage.setItem('miniCurlingFirebaseUser', JSON.stringify(user));
+      else localStorage.removeItem('miniCurlingFirebaseUser');
+    }
+
+    function compactFirebaseUser(user) {
+      if (!user) return null;
+      return {
+        uid: user.uid,
+        name: user.displayName || 'Google Player',
+        email: user.email || '',
+        picture: user.photoURL || ''
+      };
+    }
+
+    function userDocRef() {
+      return firebaseDb && firebaseUser?.uid ? firebaseDb.collection('users').doc(firebaseUser.uid) : null;
+    }
+
+    function queueCloudSave(partial) {
+      const ref = userDocRef();
+      if (!ref) return;
+      ref.set({
+        ...partial,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).catch(() => {
+        googleLoginHint.textContent = '클라우드 저장이 잠시 실패했습니다. 다음 저장 때 다시 시도합니다.';
+      });
+    }
+
+    async function loadCloudProfile() {
+      const ref = userDocRef();
+      if (!ref) return;
+      try {
+        const snap = await ref.get();
+        if (snap.exists) {
+          const data = snap.data() || {};
+          if (data.profile) localStorage.setItem(storageKey('miniCurlingProfile'), JSON.stringify(data.profile));
+          if (data.dailyProgress) localStorage.setItem(storageKey('miniCurlingDailyProgress'), JSON.stringify(data.dailyProgress));
+          if (data.leaderboard) localStorage.setItem(storageKey('miniCurlingLeaderboard'), JSON.stringify(data.leaderboard));
+          if (data.settings?.playerName) {
+            playerName = data.settings.playerName.slice(0, 20);
+            playerNameInput.value = playerName;
+            localStorage.setItem('miniCurlingPlayerName', playerName);
+          }
+          if (data.settings?.stoneSkin && isValidSkin(data.settings.stoneSkin)) {
+            stoneSkin = data.settings.stoneSkin;
+            localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
+            syncOwnSkin();
+            renderStoneSkins();
+          }
+        } else {
+          queueCloudSave({
+            profile: loadProfile(),
+            dailyProgress: loadDailyProgress(),
+            leaderboard: loadLeaderboard(),
+            settings: { playerName, stoneSkin }
+          });
+        }
+        renderProgress();
+        renderLeaderboard();
+        updateHud();
+      } catch {
+        googleLoginHint.textContent = 'Firestore에서 전적을 불러오지 못했습니다. 보안 규칙과 로그인 상태를 확인해 주세요.';
+      }
+    }
+
+    function renderAccount() {
+      if (firebaseUser) {
+        accountName.textContent = firebaseUser.name;
+        accountSubText.textContent = firebaseUser.email ? `${firebaseUser.email} 계정 전적을 Firestore에 저장 중` : 'Google 계정 전적을 Firestore에 저장 중';
+        accountAvatar.innerHTML = firebaseUser.picture ? `<img class="account-avatar" src="${escapeHtml(firebaseUser.picture)}" alt="">` : '';
+        signOutBtn.style.display = '';
+        googleButtonWrap.style.display = 'none';
+        googleLoginHint.textContent = '다른 기기에서도 같은 Google 계정으로 전적, 급수, 레이팅을 이어갈 수 있습니다.';
+        return;
+      }
+      accountName.textContent = '게스트 플레이 중';
+      accountSubText.textContent = '전적은 이 브라우저의 게스트 기록에 저장됩니다.';
+      accountAvatar.innerHTML = '';
+      signOutBtn.style.display = 'none';
+      googleButtonWrap.style.display = '';
+      googleLoginHint.textContent = '로그인하면 전적, 급수, 레이팅, 캐릭터 선택이 Firestore에 저장됩니다.';
+    }
+
+    function initFirebaseAuth() {
+      renderAccount();
+      if (firebaseAuth && firebaseDb) return;
+      if (!window.firebase?.initializeApp) {
+        googleLoginHint.textContent = 'Firebase SDK를 불러오는 중입니다.';
+        setTimeout(initFirebaseAuth, 500);
+        return;
+      }
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      firebaseAuth = firebase.auth();
+      firebaseDb = firebase.firestore();
+      firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+      firebaseAuth.onAuthStateChanged((user) => {
+        firebaseUser = compactFirebaseUser(user);
+        saveFirebaseUser(firebaseUser);
+        if (firebaseUser) {
+          playerName = firebaseUser.name.slice(0, 20);
+          playerNameInput.value = playerName;
+          localStorage.setItem('miniCurlingPlayerName', playerName);
+          loadCloudProfile();
+        }
+        renderAccount();
+        renderProgress();
+        renderLeaderboard();
+      });
+    }
+
+    function signInWithGoogle() {
+      if (!firebaseAuth) {
+        googleLoginHint.textContent = 'Firebase 초기화 중입니다. 잠시 후 다시 눌러 주세요.';
+        return;
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebaseAuth.signInWithPopup(provider).catch((error) => {
+        if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
+          firebaseAuth.signInWithRedirect(provider);
+          return;
+        }
+        googleLoginHint.textContent = `로그인 실패: ${error?.message || '다시 시도해 주세요.'}`;
+      });
     }
 
     function selectedStoneSkin() {
@@ -839,14 +1022,15 @@
 
     function loadDailyProgress() {
       try {
-        const saved = JSON.parse(localStorage.getItem('miniCurlingDailyProgress') || '{}');
+        const saved = JSON.parse(localStorage.getItem(storageKey('miniCurlingDailyProgress')) || '{}');
         if (saved.date === todayKey()) return saved;
       } catch {}
       return { date: todayKey(), completed: {} };
     }
 
     function saveDailyProgress(progress) {
-      localStorage.setItem('miniCurlingDailyProgress', JSON.stringify(progress));
+      localStorage.setItem(storageKey('miniCurlingDailyProgress'), JSON.stringify(progress));
+      queueCloudSave({ dailyProgress: progress });
     }
 
     function rankFromRating(rating) {
@@ -888,7 +1072,7 @@
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: []
       };
       try {
-        const profile = { ...defaults, ...JSON.parse(localStorage.getItem('miniCurlingProfile') || '{}') };
+        const profile = { ...defaults, ...JSON.parse(localStorage.getItem(storageKey('miniCurlingProfile')) || '{}') };
         if (!profile.currentRankKey) profile.currentRankKey = rankFromRating(profile.rating).key;
         return profile;
       }
@@ -896,7 +1080,8 @@
     }
 
     function saveProfile(profile) {
-      localStorage.setItem('miniCurlingProfile', JSON.stringify(profile));
+      localStorage.setItem(storageKey('miniCurlingProfile'), JSON.stringify(profile));
+      queueCloudSave({ profile });
     }
 
     function summarizeMatch(result) {
@@ -1760,8 +1945,20 @@
     saveNameBtn.addEventListener('click', () => {
       playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
       localStorage.setItem('miniCurlingPlayerName', playerName);
+      queueCloudSave({ settings: { playerName, stoneSkin } });
       renderLeaderboard();
     });
+
+    signOutBtn.addEventListener('click', () => {
+      firebaseAuth?.signOut();
+      firebaseUser = null;
+      saveFirebaseUser(null);
+      renderAccount();
+      renderProgress();
+      renderLeaderboard();
+    });
+
+    googleSignInBtn.addEventListener('click', signInWithGoogle);
 
     stoneSkinList.addEventListener('click', (e) => {
       const button = e.target.closest('[data-skin]');
@@ -1771,6 +1968,7 @@
       stoneSkin = nextSkin;
       localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
       syncOwnSkin();
+      queueCloudSave({ settings: { playerName, stoneSkin } });
       renderStoneSkins();
       updateHud();
       draw();
@@ -1842,6 +2040,7 @@
     }
 
     stones = makeInitialStones();
+    initFirebaseAuth();
     renderStoneSkins();
     renderLeaderboard();
     resetGame();
