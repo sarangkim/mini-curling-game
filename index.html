@@ -142,6 +142,36 @@
     .wallet-box { padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe; }
     .shop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .shop-actions button { min-height: 42px; font-size: 13px; }
+    .game-tools {
+      position: sticky; bottom: 8px; z-index: 8; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      margin-top: 10px; padding: 8px; border-radius: 18px; background: rgba(255,255,255,.88);
+      border: 1px solid rgba(147,197,253,.75); box-shadow: 0 10px 24px rgba(37,99,235,.12);
+      backdrop-filter: blur(12px);
+    }
+    .game-tools button { min-height: 40px; border-radius: 14px; font-size: 13px; padding: 0 8px; }
+    .info-sheet { position: fixed; inset: 0; z-index: 45; display: none; align-items: flex-end; }
+    .info-sheet.show { display: flex; }
+    .sheet-backdrop {
+      position: absolute; inset: 0; width: 100%; min-height: 0; border: 0; border-radius: 0; padding: 0;
+      background: rgba(15,23,42,.34);
+    }
+    .sheet-panel {
+      position: relative; width: min(860px, 100%); max-height: min(76svh, 680px); margin: 0 auto;
+      padding: 12px; border-radius: 24px 24px 0 0; background: rgba(255,255,255,.98);
+      border: 1px solid rgba(147,197,253,.9); box-shadow: 0 -18px 42px rgba(37,99,235,.2);
+      overflow: hidden; animation: sheetUp .18s ease-out;
+    }
+    @keyframes sheetUp { from { transform: translateY(24px); opacity: .7; } to { transform: translateY(0); opacity: 1; } }
+    .sheet-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .sheet-title { font-size: 18px; font-weight: 900; }
+    .sheet-close { width: 42px; min-height: 38px; padding: 0; border-radius: 14px; }
+    .sheet-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+    .sheet-tabs button { min-height: 38px; border-radius: 14px; font-size: 13px; padding: 0 8px; }
+    .sheet-tabs button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .sheet-body { max-height: calc(min(76svh, 680px) - 126px); overflow: auto; padding-bottom: 8px; }
+    .sheet-page { display: none; }
+    .sheet-page.active { display: block; }
+    .sheet-page .grid-2 { grid-template-columns: 1fr 1fr; }
     .online-list { display: grid; gap: 8px; }
     .online-player {
       display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
@@ -178,12 +208,14 @@
       margin-right: auto;
     }
     #gameScreen .game-extra { display: none; }
+    #gameScreen .info-sheet .game-extra { display: grid; }
     @media (max-width: 760px) {
       .grid-2, .stats, .footer-actions { grid-template-columns: 1fr; }
       #gameScreen .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       #gameScreen .stats .card { min-width: 0; }
       #gameScreen .stats .label { font-size: 11px; }
       #gameScreen .stats .value { font-size: 16px; }
+      .sheet-page .grid-2 { grid-template-columns: 1fr; }
       .skin-grid { grid-template-columns: repeat(3, 1fr); }
       h1 { font-size: 23px; }
       .screen-title { font-size: 22px; }
@@ -358,6 +390,32 @@
           <div class="card"><div class="label">Orange remaining</div><div class="value" id="orangeRemain">5</div></div>
           <div class="card"><div class="label">Result</div><div class="value" id="resultText">Ready</div></div>
           <div class="card"><div class="label">Players</div><div class="value" id="gamePlayersText">1 / 2</div></div>
+        </div>
+
+        <div class="game-tools">
+          <button class="ghost" data-sheet-tab="shop">상점</button>
+          <button class="ghost" data-sheet-tab="mission">미션</button>
+          <button class="ghost" data-sheet-tab="help">도움말</button>
+        </div>
+
+        <div class="info-sheet" id="gameInfoSheet" aria-hidden="true">
+          <button class="sheet-backdrop" id="sheetBackdrop" aria-label="닫기"></button>
+          <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+            <div class="sheet-head">
+              <div class="sheet-title" id="sheetTitle">경기 정보</div>
+              <button class="sheet-close ghost" id="sheetCloseBtn" aria-label="닫기">×</button>
+            </div>
+            <div class="sheet-tabs">
+              <button class="ghost" data-sheet-tab="shop">상점</button>
+              <button class="ghost" data-sheet-tab="mission">미션</button>
+              <button class="ghost" data-sheet-tab="help">도움말</button>
+            </div>
+            <div class="sheet-body">
+              <div class="sheet-page" data-sheet-page="shop"><div id="sheetShopMount"></div></div>
+              <div class="sheet-page" data-sheet-page="mission"><div id="sheetMissionMount"></div></div>
+              <div class="sheet-page" data-sheet-page="help"><div id="sheetHelpMount"></div></div>
+            </div>
+          </div>
         </div>
 
         <div class="grid-2 game-extra" style="margin-top:12px;">
@@ -547,6 +605,13 @@
     const challengeSub = $('challengeSub');
     const acceptChallengeBtn = $('acceptChallengeBtn');
     const declineChallengeBtn = $('declineChallengeBtn');
+    const gameInfoSheet = $('gameInfoSheet');
+    const sheetBackdrop = $('sheetBackdrop');
+    const sheetCloseBtn = $('sheetCloseBtn');
+    const sheetTitle = $('sheetTitle');
+    const sheetPages = Array.from(document.querySelectorAll('[data-sheet-page]'));
+    const sheetTabButtons = Array.from(document.querySelectorAll('[data-sheet-tab]'));
+    const sheetTitles = { shop: '상점', mission: '미션과 내 정보', help: '도움말' };
 
     let currentScreen = 'entry';
     let phase = 'lobby';
@@ -1764,6 +1829,30 @@
       return { completedMissions, newTitles, profile };
     }
 
+    function setupInfoSheet() {
+      const mounts = [$('sheetShopMount'), $('sheetMissionMount'), $('sheetHelpMount')];
+      const blocks = Array.from(document.querySelectorAll('#gameScreen > .panel > .game-extra'));
+      blocks.forEach((block, index) => {
+        if (!mounts[index]) return;
+        block.style.marginTop = '0';
+        mounts[index].appendChild(block);
+      });
+    }
+
+    function openGameInfoSheet(tab = 'mission') {
+      const activeTab = sheetTitles[tab] ? tab : 'mission';
+      sheetTitle.textContent = sheetTitles[activeTab];
+      sheetPages.forEach(page => page.classList.toggle('active', page.dataset.sheetPage === activeTab));
+      sheetTabButtons.forEach(button => button.classList.toggle('active', button.dataset.sheetTab === activeTab));
+      gameInfoSheet.classList.add('show');
+      gameInfoSheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeGameInfoSheet() {
+      gameInfoSheet.classList.remove('show');
+      gameInfoSheet.setAttribute('aria-hidden', 'true');
+    }
+
     function renderProgress() {
       currentMissions = getDailyMissions();
       const progress = loadDailyProgress();
@@ -2703,6 +2792,16 @@
       draw();
       requestAnimationFrame(step);
     }
+
+    setupInfoSheet();
+    sheetTabButtons.forEach(button => {
+      button.addEventListener('click', () => openGameInfoSheet(button.dataset.sheetTab));
+    });
+    sheetBackdrop.addEventListener('click', closeGameInfoSheet);
+    sheetCloseBtn.addEventListener('click', closeGameInfoSheet);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeGameInfoSheet();
+    });
 
     saveNameBtn.addEventListener('click', () => {
       playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
