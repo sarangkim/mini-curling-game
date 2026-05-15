@@ -163,8 +163,27 @@
     }
     .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
     .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
+    #gameScreen .panel { padding: 10px; }
+    #gameScreen .screen-title { font-size: 20px; margin-bottom: 2px; }
+    #gameScreen .sub { font-size: 12px; margin-top: 2px; }
+    #gameScreen .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    #gameScreen .stats .card { padding: 10px; border-radius: 16px; }
+    #gameScreen .stats .label { margin-bottom: 4px; }
+    #gameScreen .stats .value { font-size: 18px; }
+    #gameScreen .score-breakdown { display: none; }
+    #gameScreen .board-wrap {
+      width: min(100%, calc((100svh - 210px) * .75));
+      min-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #gameScreen .game-extra { display: none; }
     @media (max-width: 760px) {
       .grid-2, .stats, .footer-actions { grid-template-columns: 1fr; }
+      #gameScreen .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      #gameScreen .stats .card { min-width: 0; }
+      #gameScreen .stats .label { font-size: 11px; }
+      #gameScreen .stats .value { font-size: 16px; }
       .skin-grid { grid-template-columns: repeat(3, 1fr); }
       h1 { font-size: 23px; }
       .screen-title { font-size: 22px; }
@@ -341,7 +360,7 @@
           <div class="card"><div class="label">Players</div><div class="value" id="gamePlayersText">1 / 2</div></div>
         </div>
 
-        <div class="grid-2" style="margin-top:12px;">
+        <div class="grid-2 game-extra" style="margin-top:12px;">
           <div class="card stack">
             <div class="label">상점</div>
             <div class="wallet-row">
@@ -360,7 +379,7 @@
           </div>
         </div>
 
-        <div class="grid-2" style="margin-top:12px;">
+        <div class="grid-2 game-extra" style="margin-top:12px;">
           <div class="card">
             <div class="label">오늘의 미션</div>
             <div class="progress-grid" id="dailyMissionList"></div>
@@ -371,7 +390,7 @@
           </div>
         </div>
 
-        <div class="grid-2" style="margin-top:12px;">
+        <div class="grid-2 game-extra" style="margin-top:12px;">
           <div class="card">
             <div class="label">How to play</div>
             <div class="small">파랑과 주황이 번갈아 컬링 1개씩 움직입니다. 안쪽부터 30 / 20 / 10점입니다. P가 표시된 파워 스톤은 2~4번째 중 하나로 나오며, 충돌 때 상대 돌을 더 강하게 밀어냅니다.</div>
@@ -1917,12 +1936,7 @@
       if (forcedTimeout) {
         playTimeoutSound();
         sendSfx('timeout');
-      }
-      if (forcedTimeout) {
-        const active = stones.find(s => s.active && s.team === turn && !s.launched && !s.out);
-        if (active) {
-          stones = stones.map(s => s.id === active.id ? { ...s, active: false, launched: true, out: true, x: -999, y: -999, vx: 0, vy: 0 } : s);
-        }
+        stones = stones.map(s => s.team === turn ? { ...s, active: false } : s);
       }
       const nextPreferred = getNextTurn();
       if (countRemaining(nextPreferred) > 0) turn = nextPreferred;
