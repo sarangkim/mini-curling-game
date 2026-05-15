@@ -93,6 +93,15 @@
     }
     .overlay-title { font-size: 30px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
+    .challenge-modal {
+      position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
+      padding: 20px; background: rgba(15,23,42,.34); backdrop-filter: blur(8px);
+    }
+    .challenge-modal.show { display: grid; }
+    .challenge-card {
+      width: min(92vw, 390px); padding: 22px; border-radius: 24px; background: rgba(255,255,255,.98);
+      border: 1px solid rgba(147,197,253,.9); box-shadow: var(--shadow); text-align: center;
+    }
     .power-wrap {
       position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
       background: rgba(255,255,255,.82); border: 1px solid rgba(37,99,235,.24); overflow: hidden;
@@ -376,6 +385,17 @@
     </section>
   </div>
 
+  <div class="challenge-modal" id="challengeModal">
+    <div class="challenge-card">
+      <div class="overlay-title" id="challengeTitle">게임 신청</div>
+      <div class="overlay-sub" id="challengeSub">온라인 대전 신청이 도착했습니다.</div>
+      <div class="row">
+        <button id="acceptChallengeBtn" class="primary">수락</button>
+        <button id="declineChallengeBtn" class="ghost">거절</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const BOARD_W = 720, BOARD_H = 960, CENTER_X = BOARD_W / 2, CENTER_Y = BOARD_H / 2;
     const TABLE_MARGIN = 46, OCTAGON_INSET = 118, STONE_R = 24, SCORING_R = 88;
@@ -500,6 +520,11 @@
     const overlayTitle = $('overlayTitle');
     const overlaySub = $('overlaySub');
     const gameSubText = $('gameSubText');
+    const challengeModal = $('challengeModal');
+    const challengeTitle = $('challengeTitle');
+    const challengeSub = $('challengeSub');
+    const acceptChallengeBtn = $('acceptChallengeBtn');
+    const declineChallengeBtn = $('declineChallengeBtn');
 
     let currentScreen = 'entry';
     let phase = 'lobby';
@@ -1208,14 +1233,43 @@
     function showIncomingChallenge(id, challenge) {
       const fromName = challenge.fromName || '상대';
       incomingChallenge = { id, roomCode: challenge.roomCode };
-      showOverlay('게임 신청이 왔습니다', `${fromName} 님이 온라인 대전을 신청했습니다. 수락하면 바로 입장하고 게임이 자동으로 시작됩니다.`);
-      rematchBtn.textContent = '수락';
-      closeOverlayBtn.textContent = '거절';
+      showChallengeModal('게임 신청이 왔습니다', `${fromName} 님이 온라인 대전을 신청했습니다. 수락하면 바로 입장하고 게임이 자동으로 시작됩니다.`);
     }
 
     function resetOverlayButtons() {
       rematchBtn.textContent = 'Rematch';
       closeOverlayBtn.textContent = 'Close';
+    }
+
+    function showChallengeModal(title, sub) {
+      challengeTitle.textContent = title;
+      challengeSub.textContent = sub;
+      challengeModal.classList.add('show');
+      playTurnSound();
+      vibrate(80);
+    }
+
+    function hideChallengeModal() {
+      challengeModal.classList.remove('show');
+    }
+
+    async function acceptIncomingChallenge() {
+      if (!incomingChallenge) return;
+      const next = incomingChallenge;
+      incomingChallenge = null;
+      hideChallengeModal();
+      setChallengeStatus('신청을 수락했습니다. 바로 입장합니다.');
+      await challengeRef(next.id)?.set({ status: 'accepted', acceptedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      joinRoom(next.roomCode);
+    }
+
+    async function declineIncomingChallenge() {
+      if (!incomingChallenge) return;
+      const next = incomingChallenge;
+      incomingChallenge = null;
+      hideChallengeModal();
+      setChallengeStatus('신청을 거절했습니다.');
+      await challengeRef(next.id)?.set({ status: 'declined', declinedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
     }
 
     async function sendGameChallenge(targetUid) {
@@ -2586,12 +2640,9 @@
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
       if (incomingChallenge) {
-        const next = incomingChallenge;
-        incomingChallenge = null;
         resetOverlayButtons();
         hideOverlay();
-        challengeRef(next.id)?.set({ status: 'accepted', acceptedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-        joinRoom(next.roomCode);
+        acceptIncomingChallenge();
         return;
       }
       hideOverlay();
@@ -2610,13 +2661,13 @@
     });
     closeOverlayBtn.addEventListener('click', () => {
       if (incomingChallenge) {
-        const next = incomingChallenge;
-        incomingChallenge = null;
         resetOverlayButtons();
-        challengeRef(next.id)?.set({ status: 'declined', declinedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        declineIncomingChallenge();
       }
       hideOverlay();
     });
+    acceptChallengeBtn.addEventListener('click', acceptIncomingChallenge);
+    declineChallengeBtn.addEventListener('click', declineIncomingChallenge);
     timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
     window.addEventListener('beforeunload', () => {
       try {
