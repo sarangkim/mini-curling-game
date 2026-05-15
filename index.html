@@ -693,6 +693,36 @@
       tone(176, t + 0.16, 0.16, 'square', 0.08);
     }
 
+    function playMissionSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(523.25, t, 0.11, 'triangle', 0.08);
+      tone(659.25, t + 0.10, 0.12, 'triangle', 0.085);
+      tone(987.77, t + 0.24, 0.24, 'triangle', 0.09);
+    }
+
+    function playRankUpSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(392, t, 0.12, 'triangle', 0.09);
+      tone(523.25, t + 0.12, 0.12, 'triangle', 0.095);
+      tone(659.25, t + 0.24, 0.16, 'triangle', 0.10);
+      tone(1046.5, t + 0.42, 0.34, 'triangle', 0.10);
+    }
+
+    function playShopSound() {
+      unlockAudio();
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const t = ctx.currentTime + 0.02;
+      tone(784, t, 0.08, 'square', 0.07);
+      tone(1174.66, t + 0.08, 0.12, 'triangle', 0.075);
+    }
+
     function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
     function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
@@ -1262,6 +1292,7 @@
       applyWalletRegen(profile);
       profile.gold = Math.min(MAX_FREE_GOLD, profile.gold + GOLD_REGEN_AMOUNT);
       profile.lastGoldAt = Date.now();
+      playShopSound();
       saveProfile(profile);
       renderProgress();
     }
@@ -1279,6 +1310,7 @@
       }
       profile.stars -= 3;
       profile.sparkleFx = true;
+      playShopSound();
       saveProfile(profile);
       renderProgress();
       showOverlay('아이템 구매 완료', '이제 내 일반 스톤도 움직일 때 살짝 반짝입니다.');
@@ -1374,6 +1406,7 @@
       profile.shutouts += summary.opponentScore === 0 ? 1 : 0;
       profile.onlineGames += summary.isOnline ? 1 : 0;
       profile.rankPoints = Math.max(0, profile.rankPoints + (result === 'win' ? 12 : result === 'draw' ? 5 : 2));
+      const previousRank = rankFromRating(profile.rating);
       profile.rating = Math.max(800, Math.min(1999, profile.rating + ratingDelta(result, summary, profile)));
       const newRank = rankFromRating(profile.rating);
       if (profile.currentRankKey !== newRank.key) {
@@ -1396,6 +1429,8 @@
       }
 
       const newTitles = unlockTitles(profile);
+      if (completedMissions.length) playMissionSound();
+      if (newTitles.length || newRank.index > previousRank.index) playRankUpSound();
       saveDailyProgress(progress);
       saveProfile(profile);
       applyRankTheme(profile);
@@ -2069,12 +2104,25 @@
     canvas.addEventListener('pointerleave', releaseDrag);
     canvas.addEventListener('pointercancel', releaseDrag);
 
+    function drawUprightText(text, x, y) {
+      if (!shouldFlipBoard()) {
+        ctx.fillText(text, x, y);
+        return;
+      }
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI);
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
+
     function drawStoneSkin(stone) {
       const skin = skinById(teamSkins[stone.team]);
       if (skin.id === 'classic') return;
 
       ctx.save();
       ctx.translate(stone.x, stone.y);
+      if (shouldFlipBoard()) ctx.rotate(Math.PI);
       ctx.beginPath();
       ctx.arc(0, 0, STONE_R - 6, 0, Math.PI * 2);
       ctx.fillStyle = skin.accent;
@@ -2165,9 +2213,9 @@
       ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, MIDDLE_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(CENTER_X, CENTER_Y, INNER_RING_R, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(15,23,42,0.78)'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
-      ctx.fillText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
-      ctx.fillText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
+      drawUprightText('10', CENTER_X, CENTER_Y - OUTER_RING_R + 18);
+      drawUprightText('20', CENTER_X, CENTER_Y - MIDDLE_RING_R + 18);
+      drawUprightText('30', CENTER_X, CENTER_Y - INNER_RING_R + 16);
       ctx.beginPath(); ctx.moveTo(CENTER_X - 56, CENTER_Y); ctx.lineTo(CENTER_X + 56, CENTER_Y); ctx.moveTo(CENTER_X, CENTER_Y - 56); ctx.lineTo(CENTER_X, CENTER_Y + 56); ctx.stroke();
       if (drag) {
         ctx.strokeStyle = 'rgba(30,64,175,.9)'; ctx.lineWidth = 7; ctx.setLineDash([10, 10]);
@@ -2183,7 +2231,7 @@
         if (s.special) {
           const info = powerInfo(s.special);
           ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = info?.color || '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
-          ctx.fillStyle = info?.color || '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(info?.mark || 'P', s.x, s.y + 1);
+          ctx.fillStyle = info?.color || '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; drawUprightText(info?.mark || 'P', s.x, s.y + 1);
         }
         ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
       }
