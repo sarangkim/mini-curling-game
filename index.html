@@ -143,7 +143,7 @@
     .shop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .shop-actions button { min-height: 42px; font-size: 13px; }
     .game-tools {
-      position: sticky; bottom: 8px; z-index: 8; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      position: sticky; bottom: 8px; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
       margin-top: 10px; padding: 8px; border-radius: 18px; background: rgba(255,255,255,.88);
       border: 1px solid rgba(147,197,253,.75); box-shadow: 0 10px 24px rgba(37,99,235,.12);
       backdrop-filter: blur(12px);
@@ -165,7 +165,7 @@
     .sheet-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
     .sheet-title { font-size: 18px; font-weight: 900; }
     .sheet-close { width: 42px; min-height: 38px; padding: 0; border-radius: 14px; }
-    .sheet-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+    .sheet-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
     .sheet-tabs button { min-height: 38px; border-radius: 14px; font-size: 13px; padding: 0 8px; }
     .sheet-tabs button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
     .sheet-body { max-height: calc(min(76svh, 680px) - 126px); overflow: auto; padding-bottom: 8px; }
@@ -238,6 +238,7 @@
             <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
             <button id="saveNameBtn" class="ghost">저장</button>
           </div>
+          <div class="small" id="nameHintText"></div>
         </div>
 
         <div class="card account-box">
@@ -332,6 +333,13 @@
           <div class="skin-grid" id="lobbyStoneSkinList"></div>
         </div>
 
+        <div class="game-tools">
+          <button class="ghost" data-sheet-tab="shop">상점</button>
+          <button class="ghost" data-sheet-tab="info">내 정보</button>
+          <button class="ghost" data-sheet-tab="mission">미션</button>
+          <button class="ghost" data-sheet-tab="help">도움말</button>
+        </div>
+
         <div class="card stack">
           <div class="label">턴 제한 시간</div>
           <select id="timeSelect">
@@ -394,6 +402,7 @@
 
         <div class="game-tools">
           <button class="ghost" data-sheet-tab="shop">상점</button>
+          <button class="ghost" data-sheet-tab="info">내 정보</button>
           <button class="ghost" data-sheet-tab="mission">미션</button>
           <button class="ghost" data-sheet-tab="help">도움말</button>
         </div>
@@ -407,11 +416,13 @@
             </div>
             <div class="sheet-tabs">
               <button class="ghost" data-sheet-tab="shop">상점</button>
+              <button class="ghost" data-sheet-tab="info">내 정보</button>
               <button class="ghost" data-sheet-tab="mission">미션</button>
               <button class="ghost" data-sheet-tab="help">도움말</button>
             </div>
             <div class="sheet-body">
               <div class="sheet-page" data-sheet-page="shop"><div id="sheetShopMount"></div></div>
+              <div class="sheet-page" data-sheet-page="info"><div id="sheetInfoMount"></div></div>
               <div class="sheet-page" data-sheet-page="mission"><div id="sheetMissionMount"></div></div>
               <div class="sheet-page" data-sheet-page="help"><div id="sheetHelpMount"></div></div>
             </div>
@@ -480,6 +491,7 @@
     const MAX_POWER = 5.8, FRICTION = 0.992, MIN_SPEED = 0.05, BOUNCE = 0.985;
     const POWER_STONE_FORCE = 1.62, POWER_STONE_MAX_POWER = 8.2;
     const STONES_PER_TEAM = 5, ENTRY_FEE_GOLD = 100, GOLD_REGEN_MS = 10 * 60 * 1000, GOLD_REGEN_AMOUNT = 20, MAX_FREE_GOLD = 500;
+    const NAME_CHANGE_STAR_COST = 1;
     const POWER_TYPES = [
       { id: 'speed', label: '스피드', color: '#38bdf8', mark: 'S' },
       { id: 'magnet', label: '자석', color: '#ef4444', mark: 'M' },
@@ -560,6 +572,7 @@
     const backToLobbyBtn = $('backToLobbyBtn');
     const cpuStyleSelect = $('cpuStyleSelect');
     const playerNameInput = $('playerNameInput');
+    const nameHintText = $('nameHintText');
     const accountAvatar = $('accountAvatar');
     const accountName = $('accountName');
     const accountSubText = $('accountSubText');
@@ -611,7 +624,7 @@
     const sheetTitle = $('sheetTitle');
     const sheetPages = Array.from(document.querySelectorAll('[data-sheet-page]'));
     const sheetTabButtons = Array.from(document.querySelectorAll('[data-sheet-tab]'));
-    const sheetTitles = { shop: '상점', mission: '미션과 내 정보', help: '도움말' };
+    const sheetTitles = { shop: '상점', info: '내 정보', mission: '오늘의 미션', help: '도움말' };
 
     let currentScreen = 'entry';
     let phase = 'lobby';
@@ -1250,8 +1263,38 @@
       return firebaseDb && id ? firebaseDb.collection('challenges').doc(id) : null;
     }
 
+    function playerNameRef(nameKey) {
+      return firebaseDb && nameKey ? firebaseDb.collection('playerNames').doc(nameKey) : null;
+    }
+
     function setChallengeStatus(text) {
       challengeStatusText.textContent = text || '';
+    }
+
+    function normalizePlayerName(name) {
+      return (name || '').trim().replace(/\s+/g, ' ').slice(0, 20);
+    }
+
+    function nameKeyFor(name) {
+      return normalizePlayerName(name).toLowerCase().replace(/\s+/g, '-').replace(/[.#$/[\]]/g, '');
+    }
+
+    function renderNameControl() {
+      const profile = loadProfile();
+      const typed = normalizePlayerName(playerNameInput.value || playerName);
+      const savedKey = profile.nameKey || nameKeyFor(playerName);
+      const typedKey = nameKeyFor(typed);
+      const isChanging = Boolean(profile.nameLocked && typedKey && typedKey !== savedKey);
+      saveNameBtn.textContent = isChanging ? `별 ${NAME_CHANGE_STAR_COST}개로 변경` : (profile.nameLocked ? '이름 유지' : '이름 확정');
+      if (!firebaseUser) {
+        nameHintText.textContent = 'Google 로그인 후 이름을 확정하면 다른 사람과 중복되지 않게 예약됩니다.';
+      } else if (isChanging) {
+        nameHintText.textContent = `이미 확정한 이름을 바꾸려면 별 ${NAME_CHANGE_STAR_COST}개가 필요합니다.`;
+      } else if (profile.nameLocked) {
+        nameHintText.textContent = '이 이름은 내 계정에 예약되어 있습니다.';
+      } else {
+        nameHintText.textContent = '처음 이름 확정은 무료입니다. 같은 이름은 다른 사람이 사용할 수 없습니다.';
+      }
     }
 
     function queueCloudSave(partial) {
@@ -1501,6 +1544,7 @@
         }
         renderProgress();
         renderLeaderboard();
+        renderNameControl();
         updateHud();
       } catch {
         googleLoginHint.textContent = 'Firestore에서 전적을 불러오지 못했습니다. 보안 규칙과 로그인 상태를 확인해 주세요.';
@@ -1514,6 +1558,7 @@
         accountAvatar.innerHTML = firebaseUser.picture ? `<img class="account-avatar" src="${escapeHtml(firebaseUser.picture)}" alt="">` : '';
         signOutBtn.style.display = '';
         googleButtonWrap.style.display = 'none';
+        renderNameControl();
         googleLoginHint.textContent = '다른 기기에서도 같은 Google 계정으로 전적, 급수, 레이팅을 이어갈 수 있습니다.';
         return;
       }
@@ -1522,6 +1567,7 @@
       accountAvatar.innerHTML = '';
       signOutBtn.style.display = 'none';
       googleButtonWrap.style.display = '';
+      renderNameControl();
       googleLoginHint.textContent = '로그인하면 전적, 급수, 레이팅, 캐릭터 선택이 Firestore에 저장됩니다.';
     }
 
@@ -1741,7 +1787,8 @@
         currentRankKey: '', rankWins: 0, rankDraws: 0, rankLosses: 0, pointsScored: 0,
         centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: [],
-        gold: 300, stars: 0, lastGoldAt: Date.now(), lastStarDate: '', sparkleFx: false
+        gold: 300, stars: 0, lastGoldAt: Date.now(), lastStarDate: '', sparkleFx: false,
+        nameLocked: false, nameKey: '', displayName: ''
       };
       try {
         const profile = { ...defaults, ...JSON.parse(localStorage.getItem(storageKey('miniCurlingProfile')) || '{}') };
@@ -1754,6 +1801,73 @@
     function saveProfile(profile) {
       localStorage.setItem(storageKey('miniCurlingProfile'), JSON.stringify(profile));
       queueCloudSave({ profile });
+    }
+
+    async function reservePlayerName(nextName) {
+      const cleanName = normalizePlayerName(nextName);
+      const nextKey = nameKeyFor(cleanName);
+      if (!cleanName || cleanName.length < 2 || !nextKey) {
+        showOverlay('이름을 확인해 주세요', '플레이어 이름은 2글자 이상으로 정해 주세요.');
+        return false;
+      }
+      if (!firebaseDb || !firebaseUser?.uid) {
+        playerName = cleanName;
+        playerNameInput.value = playerName;
+        localStorage.setItem('miniCurlingPlayerName', playerName);
+        renderNameControl();
+        showOverlay('임시 이름 저장', 'Google 로그인 후 이름을 확정하면 다른 사람과 중복되지 않게 예약됩니다.');
+        return true;
+      }
+      const profile = loadProfile();
+      const oldKey = profile.nameKey || nameKeyFor(playerName);
+      const isChanging = Boolean(profile.nameLocked && oldKey && oldKey !== nextKey);
+      if (profile.nameLocked && oldKey === nextKey) {
+        renderNameControl();
+        return true;
+      }
+      applyWalletRegen(profile);
+      if (isChanging && profile.stars < NAME_CHANGE_STAR_COST) {
+        renderProgress();
+        showOverlay('별이 부족합니다', `이름을 변경하려면 별 ${NAME_CHANGE_STAR_COST}개가 필요합니다.`);
+        return false;
+      }
+      const nextRef = playerNameRef(nextKey);
+      const oldRef = oldKey && oldKey !== nextKey ? playerNameRef(oldKey) : null;
+      try {
+        await firebaseDb.runTransaction(async (tx) => {
+          const nextSnap = await tx.get(nextRef);
+          const ownerUid = nextSnap.exists ? nextSnap.data().uid : '';
+          if (ownerUid && ownerUid !== firebaseUser.uid) throw new Error('name-taken');
+          tx.set(nextRef, {
+            uid: firebaseUser.uid,
+            name: cleanName,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          if (oldRef) {
+            const oldSnap = await tx.get(oldRef);
+            if (oldSnap.exists && oldSnap.data().uid === firebaseUser.uid) tx.delete(oldRef);
+          }
+        });
+        if (isChanging) profile.stars -= NAME_CHANGE_STAR_COST;
+        profile.nameLocked = true;
+        profile.nameKey = nextKey;
+        profile.displayName = cleanName;
+        playerName = cleanName;
+        playerNameInput.value = playerName;
+        localStorage.setItem('miniCurlingPlayerName', playerName);
+        saveProfile(profile);
+        queueCloudSave({ settings: { playerName, stoneSkin } });
+        updatePresence();
+        renderProgress();
+        renderLeaderboard();
+        renderNameControl();
+        showOverlay(isChanging ? '이름 변경 완료' : '이름 확정 완료', `${playerName} 이름을 내 계정에 예약했습니다.`);
+        return true;
+      } catch (err) {
+        showOverlay('사용할 수 없는 이름입니다', err?.message === 'name-taken' ? '이미 다른 사람이 쓰고 있는 이름입니다.' : '이름 예약에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+        renderNameControl();
+        return false;
+      }
     }
 
     function summarizeMatch(result) {
@@ -1830,13 +1944,34 @@
     }
 
     function setupInfoSheet() {
-      const mounts = [$('sheetShopMount'), $('sheetMissionMount'), $('sheetHelpMount')];
+      const mounts = {
+        shop: $('sheetShopMount'),
+        info: $('sheetInfoMount'),
+        mission: $('sheetMissionMount'),
+        help: $('sheetHelpMount')
+      };
       const blocks = Array.from(document.querySelectorAll('#gameScreen > .panel > .game-extra'));
-      blocks.forEach((block, index) => {
-        if (!mounts[index]) return;
-        block.style.marginTop = '0';
-        mounts[index].appendChild(block);
-      });
+      document.body.appendChild(gameInfoSheet);
+      if (blocks[0]) {
+        blocks[0].style.marginTop = '0';
+        mounts.shop.appendChild(blocks[0]);
+      }
+      if (blocks[1]) {
+        const missionCards = Array.from(blocks[1].children);
+        const missionGrid = document.createElement('div');
+        const infoGrid = document.createElement('div');
+        missionGrid.className = 'grid-2 game-extra';
+        infoGrid.className = 'grid-2 game-extra';
+        if (missionCards[0]) missionGrid.appendChild(missionCards[0]);
+        if (missionCards[1]) infoGrid.appendChild(missionCards[1]);
+        mounts.mission.appendChild(missionGrid);
+        mounts.info.appendChild(infoGrid);
+        blocks[1].remove();
+      }
+      if (blocks[2]) {
+        blocks[2].style.marginTop = '0';
+        mounts.help.appendChild(blocks[2]);
+      }
     }
 
     function openGameInfoSheet(tab = 'mission') {
@@ -2804,12 +2939,9 @@
     });
 
     saveNameBtn.addEventListener('click', () => {
-      playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
-      localStorage.setItem('miniCurlingPlayerName', playerName);
-      queueCloudSave({ settings: { playerName, stoneSkin } });
-      updatePresence();
-      renderLeaderboard();
+      reservePlayerName(playerNameInput.value);
     });
+    playerNameInput.addEventListener('input', renderNameControl);
 
     signOutBtn.addEventListener('click', () => {
       try { onlinePlayerRef()?.set({ status: 'offline', lastSeenMs: Date.now() }, { merge: true }); } catch {}
