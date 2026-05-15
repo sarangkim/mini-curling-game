@@ -102,6 +102,7 @@
       width: min(92vw, 390px); padding: 22px; border-radius: 24px; background: rgba(255,255,255,.98);
       border: 1px solid rgba(147,197,253,.9); box-shadow: var(--shadow); text-align: center;
     }
+    .challenge-card .overlay-sub { white-space: pre-line; }
     .power-wrap {
       position: absolute; right: 10px; bottom: 12px; width: 12px; height: 170px; border-radius: 999px;
       background: rgba(255,255,255,.82); border: 1px solid rgba(37,99,235,.24); overflow: hidden;
@@ -192,6 +193,16 @@
       font-size: 14px; line-height: 1;
     }
     .stats { display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); margin-top: 12px; }
+    .match-players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .match-player {
+      min-height: 48px; padding: 8px 10px; border-radius: 16px; background: #f8fbff;
+      border: 1px solid #bfdbfe; text-align: left;
+    }
+    .match-player .label { margin-bottom: 2px; }
+    .match-player-name { font-size: 15px; font-weight: 900; color: #0f172a; }
+    .match-player-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .name-status.error { color: #b91c1c; }
+    .name-status.ok { color: #166534; }
     .footer-actions { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
     #gameScreen .panel { padding: 10px; }
     #gameScreen .screen-title { font-size: 20px; margin-bottom: 2px; }
@@ -215,6 +226,7 @@
       #gameScreen .stats .card { min-width: 0; }
       #gameScreen .stats .label { font-size: 11px; }
       #gameScreen .stats .value { font-size: 16px; }
+      .match-players { grid-template-columns: 1fr; }
       .sheet-page .grid-2 { grid-template-columns: 1fr; }
       .skin-grid { grid-template-columns: repeat(3, 1fr); }
       h1 { font-size: 23px; }
@@ -233,12 +245,12 @@
         </div>
 
         <div class="card stack">
-          <div class="label">내 플레이어 이름</div>
+          <div class="label">내 닉네임</div>
           <div class="row">
-            <input id="playerNameInput" placeholder="내 이름" maxlength="20" />
-            <button id="saveNameBtn" class="ghost">저장</button>
+            <input id="playerNameInput" placeholder="닉네임" maxlength="20" />
+            <button id="saveNameBtn" class="ghost">닉네임 확정</button>
           </div>
-          <div class="small" id="nameHintText"></div>
+          <div class="small name-status" id="nameHintText"></div>
         </div>
 
         <div class="card account-box">
@@ -375,6 +387,19 @@
           <div class="card"><div class="label">Turn left</div><div class="value" id="timeText">20s</div></div>
           <div class="card"><div class="label">Score</div><div class="value" id="scoreText">0 : 0</div><div class="score-breakdown" id="scoreBreakdown"></div></div>
           <div class="card"><div class="label">Room mode</div><div class="value" id="roomModeText">VS CPU</div></div>
+        </div>
+
+        <div class="match-players">
+          <button class="match-player" id="bluePlayerBtn" type="button">
+            <div class="label">BLUE</div>
+            <div class="match-player-name" id="bluePlayerName">Player</div>
+            <div class="match-player-meta" id="bluePlayerMeta">전적 없음</div>
+          </button>
+          <button class="match-player" id="orangePlayerBtn" type="button">
+            <div class="label">ORANGE</div>
+            <div class="match-player-name" id="orangePlayerName">CPU</div>
+            <div class="match-player-meta" id="orangePlayerMeta">연습 상대</div>
+          </button>
         </div>
 
         <div class="board-wrap">
@@ -599,6 +624,12 @@
     const playersText = $('playersText');
     const gamePlayersText = $('gamePlayersText');
     const roomModeText = $('roomModeText');
+    const bluePlayerBtn = $('bluePlayerBtn');
+    const orangePlayerBtn = $('orangePlayerBtn');
+    const bluePlayerName = $('bluePlayerName');
+    const orangePlayerName = $('orangePlayerName');
+    const bluePlayerMeta = $('bluePlayerMeta');
+    const orangePlayerMeta = $('orangePlayerMeta');
     const leaderboardEl = $('leaderboard');
     const dailyMissionList = $('dailyMissionList');
     const titleList = $('titleList');
@@ -667,6 +698,7 @@
     let firebaseAuth = null;
     let firebaseDb = null;
     let teamSkins = { blue: stoneSkin, orange: 'classic' };
+    let playerProfiles = {};
     let sparkleFxEnabled = false;
     let currentMissions = [];
     let matchStats = { shots: 0, wallHits: 0 };
@@ -1271,6 +1303,12 @@
       challengeStatusText.textContent = text || '';
     }
 
+    function setNameStatus(text, type = '') {
+      nameHintText.textContent = text || '';
+      nameHintText.classList.toggle('error', type === 'error');
+      nameHintText.classList.toggle('ok', type === 'ok');
+    }
+
     function normalizePlayerName(name) {
       return (name || '').trim().replace(/\s+/g, ' ').slice(0, 20);
     }
@@ -1285,15 +1323,15 @@
       const savedKey = profile.nameKey || nameKeyFor(playerName);
       const typedKey = nameKeyFor(typed);
       const isChanging = Boolean(profile.nameLocked && typedKey && typedKey !== savedKey);
-      saveNameBtn.textContent = isChanging ? `별 ${NAME_CHANGE_STAR_COST}개로 변경` : (profile.nameLocked ? '이름 유지' : '이름 확정');
+      saveNameBtn.textContent = isChanging ? `별 ${NAME_CHANGE_STAR_COST}개로 변경` : (profile.nameLocked ? '닉네임 유지' : '닉네임 확정');
       if (!firebaseUser) {
-        nameHintText.textContent = 'Google 로그인 후 이름을 확정하면 다른 사람과 중복되지 않게 예약됩니다.';
+        setNameStatus('Google 로그인 후 닉네임을 확정하면 다른 사람과 중복되지 않게 예약됩니다.');
       } else if (isChanging) {
-        nameHintText.textContent = `이미 확정한 이름을 바꾸려면 별 ${NAME_CHANGE_STAR_COST}개가 필요합니다.`;
+        setNameStatus(`이미 확정한 닉네임을 바꾸려면 별 ${NAME_CHANGE_STAR_COST}개가 필요합니다.`);
       } else if (profile.nameLocked) {
-        nameHintText.textContent = '이 이름은 내 계정에 예약되어 있습니다.';
+        setNameStatus('이 닉네임은 내 계정에 예약되어 있습니다.', 'ok');
       } else {
-        nameHintText.textContent = '처음 이름 확정은 무료입니다. 같은 이름은 다른 사람이 사용할 수 없습니다.';
+        setNameStatus('처음 닉네임 확정은 무료입니다. 같은 닉네임은 다른 사람이 사용할 수 없습니다.');
       }
     }
 
@@ -1309,11 +1347,15 @@
     }
 
     function presencePayload() {
+      const profile = loadProfile();
       return {
         uid: firebaseUser.uid,
         name: playerName || firebaseUser.name || 'Player',
-        rating: loadProfile().rating || 1000,
-        rank: rankFromRating(loadProfile().rating || 1000).label,
+        rating: profile.rating || 1000,
+        rank: rankFromRating(profile.rating || 1000).label,
+        record: { wins: profile.wins, draws: profile.draws, losses: profile.losses },
+        rankRecord: { wins: profile.rankWins, draws: profile.rankDraws, losses: profile.rankLosses },
+        games: profile.games || 0,
         stoneSkin,
         status: roomCode ? 'playing' : 'available',
         roomCode: roomCode || '',
@@ -1433,7 +1475,10 @@
         else sendMessage({ type: 'rematch_accept' });
         return;
       }
-      if (!incomingChallenge) return;
+      if (!incomingChallenge) {
+        hideChallengeModal();
+        return;
+      }
       const next = incomingChallenge;
       incomingChallenge = null;
       hideChallengeModal();
@@ -1457,7 +1502,10 @@
         sendMessage({ type: 'rematch_decline' });
         return;
       }
-      if (!incomingChallenge) return;
+      if (!incomingChallenge) {
+        hideChallengeModal();
+        return;
+      }
       const next = incomingChallenge;
       incomingChallenge = null;
       hideChallengeModal();
@@ -1721,6 +1769,8 @@
       profile.gold -= ENTRY_FEE_GOLD;
       saveProfile(profile);
       renderProgress();
+      syncOwnProfile();
+      broadcastState();
       return true;
     }
 
@@ -1764,6 +1814,36 @@
 
     function recordText(wins, draws, losses) {
       return `${wins}승 ${draws}무 ${losses}패`;
+    }
+
+    function playerProfileSnapshot() {
+      const profile = loadProfile();
+      return {
+        name: playerName || firebaseUser?.name || 'Player',
+        rating: profile.rating || 1000,
+        rank: rankFromRating(profile.rating || 1000).label,
+        wins: profile.wins || 0,
+        draws: profile.draws || 0,
+        losses: profile.losses || 0,
+        rankWins: profile.rankWins || 0,
+        rankDraws: profile.rankDraws || 0,
+        rankLosses: profile.rankLosses || 0,
+        games: profile.games || 0,
+        stoneSkin
+      };
+    }
+
+    function defaultTeamProfile(team) {
+      if (team === myTeam) return playerProfileSnapshot();
+      if (!conn && team === 'orange') {
+        return { name: 'CPU', rating: 1000, rank: '연습 상대', wins: 0, draws: 0, losses: 0, rankWins: 0, rankDraws: 0, rankLosses: 0, games: 0, stoneSkin: teamSkins.orange || 'classic' };
+      }
+      return { name: team.toUpperCase(), rating: 1000, rank: '-', wins: 0, draws: 0, losses: 0, rankWins: 0, rankDraws: 0, rankLosses: 0, games: 0, stoneSkin: teamSkins[team] || 'classic' };
+    }
+
+    function syncOwnProfile() {
+      playerProfiles = { ...playerProfiles, [myTeam]: playerProfileSnapshot() };
+      if (!conn && !playerProfiles.orange) playerProfiles.orange = defaultTeamProfile('orange');
     }
 
     function applyRankTheme(profile = loadProfile()) {
@@ -1870,6 +1950,89 @@
       }
     }
 
+    async function reserveNickname(nextName) {
+      saveNameBtn.disabled = true;
+      saveNameBtn.textContent = '확인 중...';
+      const cleanName = normalizePlayerName(nextName);
+      const nextKey = nameKeyFor(cleanName);
+      if (!cleanName || cleanName.length < 2 || !nextKey) {
+        setNameStatus('닉네임은 2글자 이상으로 정해 주세요.', 'error');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        return false;
+      }
+      if (!firebaseDb || !firebaseUser?.uid) {
+        playerName = cleanName;
+        playerNameInput.value = playerName;
+        localStorage.setItem('miniCurlingPlayerName', playerName);
+        setNameStatus('임시 닉네임을 저장했습니다. Google 로그인 후 중복되지 않게 확정할 수 있습니다.', 'ok');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        syncOwnProfile();
+        updateHud();
+        return true;
+      }
+      const profile = loadProfile();
+      const oldKey = profile.nameKey || nameKeyFor(playerName);
+      const isChanging = Boolean(profile.nameLocked && oldKey && oldKey !== nextKey);
+      if (profile.nameLocked && oldKey === nextKey) {
+        setNameStatus('이미 확정된 닉네임입니다.', 'ok');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        return true;
+      }
+      applyWalletRegen(profile);
+      if (isChanging && profile.stars < NAME_CHANGE_STAR_COST) {
+        renderProgress();
+        setNameStatus(`별이 부족합니다. 닉네임 변경에는 별 ${NAME_CHANGE_STAR_COST}개가 필요합니다.`, 'error');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        return false;
+      }
+      const nextRef = playerNameRef(nextKey);
+      const oldRef = oldKey && oldKey !== nextKey ? playerNameRef(oldKey) : null;
+      try {
+        await firebaseDb.runTransaction(async (tx) => {
+          const nextSnap = await tx.get(nextRef);
+          const ownerUid = nextSnap.exists ? nextSnap.data().uid : '';
+          if (ownerUid && ownerUid !== firebaseUser.uid) throw new Error('name-taken');
+          tx.set(nextRef, {
+            uid: firebaseUser.uid,
+            name: cleanName,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+          if (oldRef) {
+            const oldSnap = await tx.get(oldRef);
+            if (oldSnap.exists && oldSnap.data().uid === firebaseUser.uid) tx.delete(oldRef);
+          }
+        });
+        if (isChanging) profile.stars -= NAME_CHANGE_STAR_COST;
+        profile.nameLocked = true;
+        profile.nameKey = nextKey;
+        profile.displayName = cleanName;
+        playerName = cleanName;
+        playerNameInput.value = playerName;
+        localStorage.setItem('miniCurlingPlayerName', playerName);
+        saveProfile(profile);
+        queueCloudSave({ settings: { playerName, stoneSkin } });
+        updatePresence();
+        renderProgress();
+        renderLeaderboard();
+        syncOwnProfile();
+        broadcastState();
+        setNameStatus(isChanging ? `닉네임을 ${playerName}(으)로 변경했습니다.` : `${playerName} 닉네임을 확정했습니다.`, 'ok');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        updateHud();
+        return true;
+      } catch (err) {
+        setNameStatus(err?.message === 'name-taken' ? '이미 다른 사람이 쓰고 있는 닉네임입니다.' : '닉네임 확정에 실패했습니다. Firestore 규칙을 확인해 주세요.', 'error');
+        saveNameBtn.disabled = false;
+        renderNameControl();
+        return false;
+      }
+    }
+
     function summarizeMatch(result) {
       const myScore = score[myTeam] || 0;
       const opponentTeam = myTeam === 'blue' ? 'orange' : 'blue';
@@ -1938,6 +2101,7 @@
       if (newTitles.length || newRank.index > previousRank.index) playRankUpSound();
       saveDailyProgress(progress);
       saveProfile(profile);
+      syncOwnProfile();
       applyRankTheme(profile);
       renderProgress();
       return { completedMissions, newTitles, profile };
@@ -2102,6 +2266,26 @@
       items.sort((a, b) => (b.wins * 3 + b.draws) - (a.wins * 3 + a.draws) || b.points - a.points);
       saveLeaderboard(items);
       renderLeaderboard();
+    }
+
+    function renderMatchPlayers() {
+      syncOwnProfile();
+      const blue = playerProfiles.blue || defaultTeamProfile('blue');
+      const orange = playerProfiles.orange || defaultTeamProfile('orange');
+      bluePlayerName.textContent = blue.name || 'BLUE';
+      orangePlayerName.textContent = orange.name || (conn ? 'ORANGE' : 'CPU');
+      bluePlayerMeta.textContent = `${blue.rank || '-'} · 레이팅 ${blue.rating || 1000} · ${recordText(blue.wins || 0, blue.draws || 0, blue.losses || 0)}`;
+      orangePlayerMeta.textContent = `${orange.rank || '-'} · 레이팅 ${orange.rating || 1000} · ${recordText(orange.wins || 0, orange.draws || 0, orange.losses || 0)}`;
+    }
+
+    function showPlayerProfile(team) {
+      const profile = playerProfiles[team] || defaultTeamProfile(team);
+      showChallengeModal(
+        `${profile.name || team.toUpperCase()} 정보`,
+        `${profile.rank || '-'} · 레이팅 ${profile.rating || 1000}\n전체 전적 ${recordText(profile.wins || 0, profile.draws || 0, profile.losses || 0)}\n현등급 전적 ${recordText(profile.rankWins || 0, profile.rankDraws || 0, profile.rankLosses || 0)}\n스톤 ${skinById(profile.stoneSkin).name}`,
+        '',
+        '닫기'
+      );
     }
 
     function showOverlay(title, sub) {
@@ -2289,6 +2473,7 @@
       teamSkinText.textContent = teamSkinSummary();
       roomCodeText.textContent = roomCode || '-';
       roomModeText.textContent = conn ? 'ONLINE' : (roomCode ? 'HOSTING' : 'VS CPU');
+      renderMatchPlayers();
       startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
       timeSelect.disabled = conn ? !isHost : false;
       inviteLinkBox.textContent = onlineNoticeMessage || (roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.');
@@ -2308,7 +2493,8 @@
 
     function currentStatePayload(extra = {}) {
       syncOwnSkin();
-      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, teamSkins, ...extra };
+      syncOwnProfile();
+      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, teamSkins, playerProfiles, ...extra };
     }
 
     function applyRemoteState(payload) {
@@ -2320,6 +2506,7 @@
       if (payload.stones) stones = payload.stones;
       if (payload.score) score = payload.score;
       if (payload.teamSkins) teamSkins = { ...teamSkins, ...payload.teamSkins };
+      if (payload.playerProfiles) playerProfiles = { ...playerProfiles, ...payload.playerProfiles };
       syncOwnSkin();
       playersConnected = payload.playersConnected || playersConnected;
       if (payload.phase === 'ended') {
@@ -2345,8 +2532,9 @@
       conn.on('open', () => {
         playersConnected = 2;
         syncOwnSkin();
+        syncOwnProfile();
         updateHud();
-        sendMessage({ type: 'hello', playerName, team: myTeam, stoneSkin });
+        sendMessage({ type: 'hello', playerName, team: myTeam, stoneSkin, playerProfile: playerProfiles[myTeam] });
         if (isHost) broadcastState();
         if (isHost) setTimeout(maybeAutoStartChallenge, 350);
       });
@@ -2355,13 +2543,16 @@
         if (data.type === 'hello') {
           playersConnected = 2;
           if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          if (data.team && data.playerProfile) playerProfiles = { ...playerProfiles, [data.team]: data.playerProfile };
           syncOwnSkin();
+          syncOwnProfile();
           updateHud();
           if (isHost) broadcastState();
           return;
         }
         if (data.type === 'skin_update') {
           if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          if (data.team && playerProfiles[data.team]) playerProfiles[data.team].stoneSkin = data.stoneSkin;
           updateHud();
           draw();
           if (isHost) broadcastState();
@@ -2369,6 +2560,7 @@
         }
         if (data.type === 'request_state' && isHost) {
           if (data.team && isValidSkin(data.stoneSkin)) teamSkins = { ...teamSkins, [data.team]: data.stoneSkin };
+          if (data.team && data.playerProfile) playerProfiles = { ...playerProfiles, [data.team]: data.playerProfile };
           broadcastState();
           return;
         }
@@ -2418,6 +2610,7 @@
       roomCode = '';
       playersConnected = 1;
       teamSkins = { blue: stoneSkin, orange: 'classic' };
+      playerProfiles = { blue: playerProfileSnapshot(), orange: defaultTeamProfile('orange') };
       history.replaceState({}, '', window.location.pathname);
       updatePresence();
       updateHud();
@@ -2432,6 +2625,7 @@
       myTeam = 'blue';
       teamSkins = { blue: 'classic', orange: 'classic' };
       syncOwnSkin();
+      syncOwnProfile();
       return new Promise((resolve) => {
         let settled = false;
         const finish = (ok) => { if (!settled) { settled = true; resolve(ok); } };
@@ -2468,6 +2662,7 @@
       myTeam = 'orange';
       teamSkins = { blue: 'classic', orange: 'classic' };
       syncOwnSkin();
+      syncOwnProfile();
       peer = new Peer();
       peer.on('open', () => {
         const connection = peer.connect(PEER_PREFIX + roomCode, { reliable: true });
@@ -2475,7 +2670,8 @@
         connection.on('open', () => {
           onlineStatusText.textContent = '방 참가 완료';
           updatePresence();
-          sendMessage({ type: 'request_state', playerName, team: myTeam, stoneSkin });
+          syncOwnProfile();
+          sendMessage({ type: 'request_state', playerName, team: myTeam, stoneSkin, playerProfile: playerProfiles[myTeam] });
           enterLobbyScreen();
         });
       });
@@ -2939,9 +3135,11 @@
     });
 
     saveNameBtn.addEventListener('click', () => {
-      reservePlayerName(playerNameInput.value);
+      reserveNickname(playerNameInput.value);
     });
     playerNameInput.addEventListener('input', renderNameControl);
+    bluePlayerBtn.addEventListener('click', () => showPlayerProfile('blue'));
+    orangePlayerBtn.addEventListener('click', () => showPlayerProfile('orange'));
 
     signOutBtn.addEventListener('click', () => {
       try { onlinePlayerRef()?.set({ status: 'offline', lastSeenMs: Date.now() }, { merge: true }); } catch {}
