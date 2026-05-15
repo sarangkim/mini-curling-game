@@ -522,6 +522,7 @@
     let outgoingChallengeUnsub = null;
     let onlinePlayersCache = [];
     let incomingChallenge = null;
+    let autoStartChallenge = false;
     let isHost = false;
     let myTeam = 'blue';
     let roomCode = '';
@@ -1207,7 +1208,7 @@
     function showIncomingChallenge(id, challenge) {
       const fromName = challenge.fromName || '상대';
       incomingChallenge = { id, roomCode: challenge.roomCode };
-      showOverlay('게임 신청이 왔습니다', `${fromName} 님이 온라인 대전을 신청했습니다.`);
+      showOverlay('게임 신청이 왔습니다', `${fromName} 님이 온라인 대전을 신청했습니다. 수락하면 바로 입장하고 게임이 자동으로 시작됩니다.`);
       rematchBtn.textContent = '수락';
       closeOverlayBtn.textContent = '거절';
     }
@@ -1247,7 +1248,11 @@
       outgoingChallengeUnsub?.();
       outgoingChallengeUnsub = ref.onSnapshot((snap) => {
         const data = snap.data() || {};
-        if (data.status === 'accepted') setChallengeStatus(`${target.name || '상대'} 님이 수락했습니다. 대기실에서 시작하세요.`);
+        if (data.status === 'accepted') {
+          autoStartChallenge = true;
+          setChallengeStatus(`${target.name || '상대'} 님이 수락했습니다. 연결되면 자동으로 시작됩니다.`);
+          maybeAutoStartChallenge();
+        }
         if (data.status === 'declined') setChallengeStatus(`${target.name || '상대'} 님이 거절했습니다.`);
       });
       setChallengeStatus(`${target.name || '상대'} 님에게 신청을 보냈습니다.`);
@@ -1852,6 +1857,17 @@
       return true;
     }
 
+    function maybeAutoStartChallenge() {
+      if (!autoStartChallenge || !isHost || !conn?.open || playersConnected < 2 || phase === 'playing') return;
+      autoStartChallenge = false;
+      if (startGame()) {
+        sendMessage({ type: 'start' });
+        setChallengeStatus('상대가 수락해서 게임을 바로 시작했습니다.');
+      } else {
+        setChallengeStatus('골드가 부족해서 자동 시작하지 못했습니다.');
+      }
+    }
+
     function updateHud() {
       computeScores();
       turnDot.style.background = COLORS[turn];
@@ -1927,6 +1943,7 @@
         updateHud();
         sendMessage({ type: 'hello', playerName, team: myTeam, stoneSkin });
         if (isHost) broadcastState();
+        if (isHost) setTimeout(maybeAutoStartChallenge, 350);
       });
       conn.on('data', (data) => {
         if (!data || typeof data !== 'object') return;
