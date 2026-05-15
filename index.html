@@ -551,6 +551,8 @@
     let onlinePlayersCache = [];
     let incomingChallenge = null;
     let autoStartChallenge = false;
+    let waitingChallenge = null;
+    let pendingRematch = false;
     let isHost = false;
     let myTeam = 'blue';
     let roomCode = '';
@@ -1276,9 +1278,13 @@
       closeOverlayBtn.textContent = 'Close';
     }
 
-    function showChallengeModal(title, sub) {
+    function showChallengeModal(title, sub, acceptLabel = '수락', declineLabel = '거절') {
       challengeTitle.textContent = title;
       challengeSub.textContent = sub;
+      acceptChallengeBtn.textContent = acceptLabel;
+      declineChallengeBtn.textContent = declineLabel;
+      acceptChallengeBtn.style.display = acceptLabel ? '' : 'none';
+      declineChallengeBtn.style.display = declineLabel ? '' : 'none';
       challengeModal.classList.add('show');
       playTurnSound();
       vibrate(80);
@@ -1286,9 +1292,20 @@
 
     function hideChallengeModal() {
       challengeModal.classList.remove('show');
+      acceptChallengeBtn.style.display = '';
+      declineChallengeBtn.style.display = '';
+      acceptChallengeBtn.textContent = '수락';
+      declineChallengeBtn.textContent = '거절';
     }
 
     async function acceptIncomingChallenge() {
+      if (pendingRematch && !incomingChallenge) {
+        pendingRematch = false;
+        hideChallengeModal();
+        if (isHost) autoStartRematch();
+        else sendMessage({ type: 'rematch_accept' });
+        return;
+      }
       if (!incomingChallenge) return;
       const next = incomingChallenge;
       incomingChallenge = null;
@@ -1299,6 +1316,20 @@
     }
 
     async function declineIncomingChallenge() {
+      if (waitingChallenge) {
+        const next = waitingChallenge;
+        waitingChallenge = null;
+        hideChallengeModal();
+        setChallengeStatus('신청을 취소했습니다.');
+        await next.ref?.set({ status: 'cancelled', cancelledAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(() => {});
+        return;
+      }
+      if (pendingRematch && !incomingChallenge) {
+        pendingRematch = false;
+        hideChallengeModal();
+        sendMessage({ type: 'rematch_decline' });
+        return;
+      }
       if (!incomingChallenge) return;
       const next = incomingChallenge;
       incomingChallenge = null;
@@ -1324,6 +1355,8 @@
         return;
       }
       const ref = firebaseDb.collection('challenges').doc();
+      waitingChallenge = { kind: 'initial', ref, targetName: target.name || '상대' };
+      showChallengeModal('수락 대기 중', `${target.name || '상대'} 님이 수락할 때까지 기다리는 중입니다.`, '', '신청 취소');
       await ref.set({
         fromUid: firebaseUser.uid,
         fromName: playerName || firebaseUser.name || 'Player',
@@ -1339,10 +1372,16 @@
         const data = snap.data() || {};
         if (data.status === 'accepted') {
           autoStartChallenge = true;
+          waitingChallenge = null;
+          hideChallengeModal();
           setChallengeStatus(`${target.name || '상대'} 님이 수락했습니다. 연결되면 자동으로 시작됩니다.`);
           maybeAutoStartChallenge();
         }
-        if (data.status === 'declined') setChallengeStatus(`${target.name || '상대'} 님이 거절했습니다.`);
+        if (data.status === 'declined') {
+          waitingChallenge = null;
+          hideChallengeModal();
+          setChallengeStatus(`${target.name || '상대'} 님이 거절했습니다.`);
+        }
       });
       setChallengeStatus(`${target.name || '상대'} 님에게 신청을 보냈습니다.`);
     }
@@ -1825,6 +1864,8 @@
     function showOverlay(title, sub) {
       overlayTitle.textContent = title;
       overlaySub.textContent = sub;
+      rematchBtn.style.display = '';
+      closeOverlayBtn.textContent = 'Close';
       resultOverlay.classList.add('show');
     }
 
@@ -1867,7 +1908,7 @@
       playResultSoundForTeam(myTeam);
       recordLeaderboard(teamResult);
       const progressResult = recordProgress(teamResult);
-      showOverlay(resultTitleForTeam(myTeam), `${resultScoreText(myTeam)} BLUE ${score.blue} : ORANGE ${score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${progressSummaryText(progressResult)}`);
+      showEndOverlayForResult(teamResult, score, progressSummaryText(progressResult));
       updateHud();
       broadcastState({ teamResultHost: resultForTeam('blue'), teamResultGuest: resultForTeam('orange') });
     }
@@ -1898,6 +1939,23 @@
       sendSfx('turn');
       updateHud();
       broadcastState();
+    }
+
+    function showEndOverlayForResult(teamResult, scoreValues = score, progressText = '') {
+      const base = `${resultScoreText(myTeam, scoreValues)} BLUE ${scoreValues.blue} : ORANGE ${scoreValues.orange}`;
+      if (conn && teamResult === 'lose') {
+        showOverlay('You Lose', `${base} · 재도전하시겠습니까?${progressText}`);
+        rematchBtn.textContent = '재도전';
+        closeOverlayBtn.textContent = '닫기';
+      } else if (conn && teamResult === 'win') {
+        showOverlay('You Win', `${base} · 상대의 재도전 요청을 기다릴 수 있습니다.${progressText}`);
+        rematchBtn.style.display = 'none';
+        closeOverlayBtn.textContent = '닫기';
+      } else {
+        showOverlay(resultTitleForTeam(myTeam), `${base} · Rematch를 누르면 새 게임이 바로 시작됩니다.${progressText}`);
+        rematchBtn.textContent = 'Rematch';
+        closeOverlayBtn.textContent = 'Close';
+      }
     }
 
     function resetGame() {
@@ -1955,6 +2013,26 @@
       } else {
         setChallengeStatus('골드가 부족해서 자동 시작하지 못했습니다.');
       }
+    }
+
+    function autoStartRematch() {
+      if (!isHost || !conn?.open) return;
+      pendingRematch = false;
+      hideChallengeModal();
+      hideOverlay();
+      if (startGame()) sendMessage({ type: 'rematch' });
+    }
+
+    function sendRematchRequest() {
+      if (!conn?.open) return;
+      pendingRematch = true;
+      sendMessage({ type: 'rematch_request', fromName: playerName });
+      showChallengeModal('재도전 대기 중', '상대가 재도전을 허락할 때까지 기다리는 중입니다.', '', '취소');
+    }
+
+    function showRematchRequest(fromName = '상대') {
+      pendingRematch = true;
+      showChallengeModal('재도전 요청', `${fromName} 님이 재도전을 신청했습니다. 허락하시겠습니까?`, '허락', '거절');
     }
 
     function updateHud() {
@@ -2015,7 +2093,7 @@
           recordLeaderboard(myResult);
           var remoteProgress = recordProgress(myResult);
         }
-        showOverlay(resultTitleForTeam(myTeam), `${resultScoreText(myTeam, payload.score)} BLUE ${payload.score.blue} : ORANGE ${payload.score.orange} · Rematch를 누르면 새 게임이 바로 시작됩니다.${remoteProgress ? progressSummaryText(remoteProgress) : ''}`);
+        showEndOverlayForResult(myResult, payload.score, remoteProgress ? progressSummaryText(remoteProgress) : '');
       }
       updateHud();
     }
@@ -2074,6 +2152,14 @@
         if (data.type === 'start' && !isHost) { startGame(false); return; }
         if (data.type === 'reset') { resetGame(); return; }
         if (data.type === 'rematch') { startGame(false); return; }
+        if (data.type === 'rematch_request') { showRematchRequest(data.fromName); return; }
+        if (data.type === 'rematch_accept') { if (isHost) autoStartRematch(); return; }
+        if (data.type === 'rematch_decline') {
+          pendingRematch = false;
+          hideChallengeModal();
+          showOverlay('재도전 거절', '상대가 재도전을 거절했습니다.');
+          return;
+        }
       });
       conn.on('close', () => {
         conn = null;
@@ -2694,12 +2780,11 @@
       }
       hideOverlay();
       if (conn) {
-        if (!isHost) {
-          overlayTitle.textContent = '호스트가 다시 시작해야 합니다';
-          overlaySub.textContent = '온라인에서는 방을 만든 사람이 Rematch를 눌러야 새 게임이 시작됩니다.';
-          resultOverlay.classList.add('show');
+        if (phase === 'ended' && resultForTeam(myTeam) === 'lose') {
+          sendRematchRequest();
           return;
         }
+        if (!isHost) return;
         if (!startGame()) return;
         sendMessage({ type: 'rematch' });
         return;
