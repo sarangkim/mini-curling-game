@@ -133,6 +133,13 @@
     .wallet-box { padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe; }
     .shop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .shop-actions button { min-height: 42px; font-size: 13px; }
+    .online-list { display: grid; gap: 8px; }
+    .online-player {
+      display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+      padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe;
+    }
+    .online-player button { min-width: 92px; min-height: 38px; font-size: 13px; }
+    .presence-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: #22c55e; margin-right: 6px; }
     .skin-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
     .skin-option {
       min-height: 74px; padding: 8px; border-radius: 16px; border: 1px solid #bfdbfe;
@@ -211,6 +218,15 @@
             </div>
             <div class="small">초대 링크로 들어오면 방 코드가 자동 입력되고 자동 참가합니다.</div>
           </div>
+        </div>
+
+        <div class="card stack">
+          <div>
+            <div class="label">온라인 상대 찾기</div>
+            <div class="small">Google 로그인 중인 플레이어에게 바로 게임을 신청할 수 있습니다.</div>
+          </div>
+          <div class="online-list" id="onlinePlayerList"></div>
+          <div class="small" id="challengeStatusText"></div>
         </div>
 
         <div class="card stack">
@@ -439,6 +455,8 @@
     const leaveRoomBtn = $('leaveRoomBtn');
     const saveNameBtn = $('saveNameBtn');
     const soloPlayBtn = $('soloPlayBtn');
+    const onlinePlayerList = $('onlinePlayerList');
+    const challengeStatusText = $('challengeStatusText');
     const backToLobbyBtn = $('backToLobbyBtn');
     const cpuStyleSelect = $('cpuStyleSelect');
     const playerNameInput = $('playerNameInput');
@@ -498,6 +516,12 @@
     let peerLoadPromise = null;
     let onlineErrorMessage = '';
     let onlineNoticeMessage = '';
+    let presenceTimer = null;
+    let presenceUnsub = null;
+    let challengeUnsub = null;
+    let outgoingChallengeUnsub = null;
+    let onlinePlayersCache = [];
+    let incomingChallenge = null;
     let isHost = false;
     let myTeam = 'blue';
     let roomCode = '';
@@ -1071,6 +1095,18 @@
       return firebaseDb && firebaseUser?.uid ? firebaseDb.collection('users').doc(firebaseUser.uid) : null;
     }
 
+    function onlinePlayerRef() {
+      return firebaseDb && firebaseUser?.uid ? firebaseDb.collection('onlinePlayers').doc(firebaseUser.uid) : null;
+    }
+
+    function challengeRef(id) {
+      return firebaseDb && id ? firebaseDb.collection('challenges').doc(id) : null;
+    }
+
+    function setChallengeStatus(text) {
+      challengeStatusText.textContent = text || '';
+    }
+
     function queueCloudSave(partial) {
       const ref = userDocRef();
       if (!ref) return;
@@ -1080,6 +1116,141 @@
       }, { merge: true }).catch(() => {
         googleLoginHint.textContent = '클라우드 저장이 잠시 실패했습니다. 다음 저장 때 다시 시도합니다.';
       });
+    }
+
+    function presencePayload() {
+      return {
+        uid: firebaseUser.uid,
+        name: playerName || firebaseUser.name || 'Player',
+        rating: loadProfile().rating || 1000,
+        rank: rankFromRating(loadProfile().rating || 1000).label,
+        stoneSkin,
+        status: roomCode ? 'playing' : 'available',
+        roomCode: roomCode || '',
+        lastSeenMs: Date.now(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+    }
+
+    function updatePresence() {
+      const ref = onlinePlayerRef();
+      if (!ref) return;
+      ref.set(presencePayload(), { merge: true }).catch(() => {
+        setChallengeStatus('온라인 상대 목록을 갱신하지 못했습니다. Firestore 규칙을 확인해 주세요.');
+      });
+    }
+
+    function stopOnlinePresence() {
+      if (presenceTimer) clearInterval(presenceTimer);
+      presenceTimer = null;
+      presenceUnsub?.();
+      challengeUnsub?.();
+      outgoingChallengeUnsub?.();
+      presenceUnsub = null;
+      challengeUnsub = null;
+      outgoingChallengeUnsub = null;
+      onlinePlayersCache = [];
+      onlinePlayerList.innerHTML = '<div class="small">Google 로그인 후 온라인 상대를 볼 수 있습니다.</div>';
+      setChallengeStatus('');
+    }
+
+    function startOnlinePresence() {
+      stopOnlinePresence();
+      if (!firebaseDb || !firebaseUser?.uid) return;
+      updatePresence();
+      presenceTimer = setInterval(updatePresence, 20000);
+      const cutoff = Date.now() - 60000;
+      presenceUnsub = firebaseDb.collection('onlinePlayers')
+        .where('lastSeenMs', '>', cutoff)
+        .onSnapshot((snap) => {
+          onlinePlayersCache = [];
+          snap.forEach(doc => {
+            const player = doc.data() || {};
+            if (player.uid !== firebaseUser.uid && player.status === 'available' && Date.now() - (player.lastSeenMs || 0) < 65000) onlinePlayersCache.push(player);
+          });
+          renderOnlinePlayers();
+        }, () => {
+          onlinePlayerList.innerHTML = '<div class="small">온라인 상대 목록을 불러오지 못했습니다.</div>';
+        });
+      challengeUnsub = firebaseDb.collection('challenges')
+        .where('toUid', '==', firebaseUser.uid)
+        .where('status', '==', 'pending')
+        .onSnapshot((snap) => {
+          snap.docChanges().forEach(change => {
+            if (change.type === 'added' || change.type === 'modified') showIncomingChallenge(change.doc.id, change.doc.data());
+          });
+        }, () => setChallengeStatus('게임 신청을 확인하지 못했습니다. Firestore 규칙을 확인해 주세요.'));
+    }
+
+    function renderOnlinePlayers() {
+      if (!firebaseUser) {
+        onlinePlayerList.innerHTML = '<div class="small">Google 로그인 후 온라인 상대를 볼 수 있습니다.</div>';
+        return;
+      }
+      if (!onlinePlayersCache.length) {
+        onlinePlayerList.innerHTML = '<div class="small">지금 신청 가능한 온라인 플레이어가 없습니다.</div>';
+        return;
+      }
+      onlinePlayerList.innerHTML = onlinePlayersCache
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .map(player => `
+          <div class="online-player">
+            <div>
+              <div class="title-name"><span class="presence-dot"></span>${escapeHtml(player.name || 'Player')}</div>
+              <div class="small">${escapeHtml(player.rank || '18급')} · 레이팅 ${player.rating || 1000} · ${escapeHtml(skinById(player.stoneSkin).name)}</div>
+            </div>
+            <button class="ghost" type="button" data-challenge-uid="${escapeHtml(player.uid)}">신청</button>
+          </div>
+        `).join('');
+    }
+
+    function showIncomingChallenge(id, challenge) {
+      const fromName = challenge.fromName || '상대';
+      incomingChallenge = { id, roomCode: challenge.roomCode };
+      showOverlay('게임 신청이 왔습니다', `${fromName} 님이 온라인 대전을 신청했습니다.`);
+      rematchBtn.textContent = '수락';
+      closeOverlayBtn.textContent = '거절';
+    }
+
+    function resetOverlayButtons() {
+      rematchBtn.textContent = 'Rematch';
+      closeOverlayBtn.textContent = 'Close';
+    }
+
+    async function sendGameChallenge(targetUid) {
+      if (!firebaseDb || !firebaseUser?.uid) {
+        setChallengeStatus('Google 로그인 후 게임 신청을 할 수 있습니다.');
+        return;
+      }
+      const target = onlinePlayersCache.find(player => player.uid === targetUid);
+      if (!target) {
+        setChallengeStatus('상대가 더 이상 온라인 상태가 아닙니다.');
+        return;
+      }
+      setChallengeStatus(`${target.name || '상대'} 님에게 신청 중입니다...`);
+      const madeRoom = await createRoom({ challengeMode: true });
+      if (!madeRoom) {
+        setChallengeStatus('방을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      const ref = firebaseDb.collection('challenges').doc();
+      await ref.set({
+        fromUid: firebaseUser.uid,
+        fromName: playerName || firebaseUser.name || 'Player',
+        toUid: target.uid,
+        toName: target.name || 'Player',
+        roomCode,
+        status: 'pending',
+        createdAtMs: Date.now(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      outgoingChallengeUnsub?.();
+      outgoingChallengeUnsub = ref.onSnapshot((snap) => {
+        const data = snap.data() || {};
+        if (data.status === 'accepted') setChallengeStatus(`${target.name || '상대'} 님이 수락했습니다. 대기실에서 시작하세요.`);
+        if (data.status === 'declined') setChallengeStatus(`${target.name || '상대'} 님이 거절했습니다.`);
+      });
+      setChallengeStatus(`${target.name || '상대'} 님에게 신청을 보냈습니다.`);
     }
 
     async function loadCloudProfile() {
@@ -1157,6 +1328,9 @@
           playerNameInput.value = playerName;
           localStorage.setItem('miniCurlingPlayerName', playerName);
           loadCloudProfile();
+          startOnlinePresence();
+        } else {
+          stopOnlinePresence();
         }
         renderAccount();
         renderProgress();
@@ -1815,34 +1989,44 @@
       playersConnected = 1;
       teamSkins = { blue: stoneSkin, orange: 'classic' };
       history.replaceState({}, '', window.location.pathname);
+      updatePresence();
       updateHud();
     }
 
-    async function createRoom() {
+    async function createRoom(options = {}) {
       unlockAudio();
-      if (!(await ensurePeerReady())) return;
+      if (!(await ensurePeerReady())) return false;
       teardownRoom();
       roomCode = randomCode();
       isHost = true;
       myTeam = 'blue';
       teamSkins = { blue: 'classic', orange: 'classic' };
       syncOwnSkin();
-      peer = new Peer(PEER_PREFIX + roomCode);
-      peer.on('open', () => {
-        playersConnected = 1;
-        onlineStatusText.textContent = '방 생성됨';
-        updateHud();
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', roomCode);
-        history.replaceState({}, '', url);
-        enterLobbyScreen();
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+        peer = new Peer(PEER_PREFIX + roomCode);
+        peer.on('open', () => {
+          playersConnected = 1;
+          onlineStatusText.textContent = options.challengeMode ? '신청 대기 중' : '방 생성됨';
+          updatePresence();
+          updateHud();
+          const url = new URL(window.location.href);
+          url.searchParams.set('room', roomCode);
+          history.replaceState({}, '', url);
+          enterLobbyScreen();
+          finish(true);
+        });
+        peer.on('connection', (connection) => {
+          if (conn && conn.open) { connection.close(); return; }
+          setConnectionHandlers(connection);
+        });
+        peer.on('error', () => {
+          onlineStatusText.textContent = '방 생성 실패';
+          finish(false);
+        });
+        setTimeout(() => finish(false), 7000);
       });
-      peer.on('connection', (connection) => {
-        if (conn && conn.open) { connection.close(); return; }
-        setConnectionHandlers(connection);
-      });
-      peer.on('error', () => { onlineStatusText.textContent = '방 생성 실패'; });
-      updateHud();
     }
 
     async function joinRoom(code) {
@@ -1860,6 +2044,7 @@
         setConnectionHandlers(connection);
         connection.on('open', () => {
           onlineStatusText.textContent = '방 참가 완료';
+          updatePresence();
           sendMessage({ type: 'request_state', playerName, team: myTeam, stoneSkin });
           enterLobbyScreen();
         });
@@ -2305,13 +2490,16 @@
       playerName = (playerNameInput.value || 'Player').trim().slice(0, 20) || 'Player';
       localStorage.setItem('miniCurlingPlayerName', playerName);
       queueCloudSave({ settings: { playerName, stoneSkin } });
+      updatePresence();
       renderLeaderboard();
     });
 
     signOutBtn.addEventListener('click', () => {
+      try { onlinePlayerRef()?.set({ status: 'offline', lastSeenMs: Date.now() }, { merge: true }); } catch {}
       firebaseAuth?.signOut();
       firebaseUser = null;
       saveFirebaseUser(null);
+      stopOnlinePresence();
       renderAccount();
       renderProgress();
       renderLeaderboard();
@@ -2327,6 +2515,7 @@
       localStorage.setItem('miniCurlingStoneSkin', stoneSkin);
       syncOwnSkin();
       queueCloudSave({ settings: { playerName, stoneSkin } });
+      updatePresence();
       renderStoneSkins();
       updateHud();
       draw();
@@ -2342,6 +2531,11 @@
 
     stoneSkinList.addEventListener('click', handleSkinPick);
     lobbyStoneSkinList.addEventListener('click', handleSkinPick);
+    onlinePlayerList.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-challenge-uid]');
+      if (!button) return;
+      sendGameChallenge(button.dataset.challengeUid);
+    });
 
     cpuStyleSelect.addEventListener('change', () => {
       cpuStyle = cpuStyleSelect.value || 'precise';
@@ -2374,6 +2568,15 @@
     });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
+      if (incomingChallenge) {
+        const next = incomingChallenge;
+        incomingChallenge = null;
+        resetOverlayButtons();
+        hideOverlay();
+        challengeRef(next.id)?.set({ status: 'accepted', acceptedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        joinRoom(next.roomCode);
+        return;
+      }
       hideOverlay();
       if (conn) {
         if (!isHost) {
@@ -2388,8 +2591,21 @@
       }
       startGame();
     });
-    closeOverlayBtn.addEventListener('click', hideOverlay);
+    closeOverlayBtn.addEventListener('click', () => {
+      if (incomingChallenge) {
+        const next = incomingChallenge;
+        incomingChallenge = null;
+        resetOverlayButtons();
+        challengeRef(next.id)?.set({ status: 'declined', declinedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      }
+      hideOverlay();
+    });
     timeSelect.addEventListener('change', () => { if (phase !== 'playing') { resetTurnClock(); updateHud(); broadcastState(); } });
+    window.addEventListener('beforeunload', () => {
+      try {
+        onlinePlayerRef()?.set({ status: 'offline', lastSeenMs: Date.now() }, { merge: true });
+      } catch {}
+    });
 
     function tryJoinFromInput() {
       const code = (joinCodeInput.value || '').trim().toUpperCase();
@@ -2410,6 +2626,7 @@
     initFirebaseAuth();
     renderStoneSkins();
     renderLeaderboard();
+    renderOnlinePlayers();
     resetGame();
     initFromQuery();
     requestAnimationFrame(step);
