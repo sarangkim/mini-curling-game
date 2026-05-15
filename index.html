@@ -356,7 +356,7 @@
           </div>
           <div class="card">
             <div class="label">파워스톤</div>
-            <div class="small">각 팀에 랜덤 파워스톤 1개가 나옵니다. 파랑은 빠르게 튀고, 빨강은 끌고 가고, 검정은 처음 닿은 스톤을 폭발시키고, 초록은 잘 멈춥니다.</div>
+            <div class="small">각 팀에 랜덤 파워스톤 1개가 나옵니다. 스피드, 자석, 폭탄, 끈끈이, 커브, 유령, 스왑 중 하나가 등장합니다.</div>
           </div>
         </div>
 
@@ -407,7 +407,10 @@
       { id: 'speed', label: '스피드', color: '#38bdf8', mark: 'S' },
       { id: 'magnet', label: '자석', color: '#ef4444', mark: 'M' },
       { id: 'bomb', label: '폭탄', color: '#111827', mark: 'B' },
-      { id: 'sticky', label: '끈끈이', color: '#22c55e', mark: 'G' }
+      { id: 'sticky', label: '끈끈이', color: '#22c55e', mark: 'G' },
+      { id: 'curve', label: '커브', color: '#8b5cf6', mark: 'C' },
+      { id: 'ghost', label: '유령', color: '#a78bfa', mark: 'U' },
+      { id: 'swap', label: '스왑', color: '#f472b6', mark: 'W' }
     ];
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 35, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
@@ -730,6 +733,17 @@
       } else if (type === 'sticky') {
         tone(330, t, 0.18, 'triangle', 0.09);
         tone(247, t + 0.16, 0.20, 'triangle', 0.08);
+      } else if (type === 'curve') {
+        tone(587.33, t, 0.12, 'sine', 0.08);
+        tone(739.99, t + 0.09, 0.15, 'sine', 0.085);
+        tone(622.25, t + 0.20, 0.18, 'sine', 0.07);
+      } else if (type === 'ghost') {
+        tone(493.88, t, 0.22, 'triangle', 0.06);
+        tone(987.77, t + 0.08, 0.25, 'sine', 0.05);
+      } else if (type === 'swap') {
+        tone(659.25, t, 0.09, 'square', 0.075);
+        tone(440, t + 0.08, 0.09, 'square', 0.07);
+        tone(880, t + 0.16, 0.14, 'triangle', 0.08);
       }
     }
 
@@ -808,6 +822,8 @@
       if (stone.special === 'magnet') return 1.75;
       if (stone.special === 'speed') return 0.82;
       if (stone.special === 'sticky') return 1.15;
+      if (stone.special === 'ghost') return 0.86;
+      if (stone.special === 'swap') return 1.25;
       return stone.special ? POWER_STONE_FORCE : 1;
     }
     function activeStoneLabel() {
@@ -1039,6 +1055,25 @@
         playExplosionSound();
         sendSfx('explosion');
         vibrate(45);
+        return true;
+      }
+      if (power.special === 'ghost') {
+        power.x += power.vx * 2.4;
+        power.y += power.vy * 2.4;
+        playPowerLaunchSound('ghost');
+        return true;
+      }
+      if (power.special === 'swap') {
+        const px = power.x, py = power.y, pvx = power.vx, pvy = power.vy;
+        power.x = other.x;
+        power.y = other.y;
+        power.vx = other.vx * 0.8;
+        power.vy = other.vy * 0.8;
+        other.x = px;
+        other.y = py;
+        other.vx = pvx * 0.8;
+        other.vy = pvy * 0.8;
+        playPowerLaunchSound('swap');
         return true;
       }
       if (power.special === 'magnet') {
@@ -2155,7 +2190,10 @@
         playPowerLaunchSound(launchedStone.special);
         sendSfx('power', { powerType: launchedStone.special });
       }
-      stones = stones.map(s => s.id === stoneId ? { ...s, vx, vy, active: false, launched: true } : s);
+      const spin = launchedStone?.special === 'curve' ? (stoneId.endsWith('0') || stoneId.endsWith('2') || stoneId.endsWith('4') ? 0.018 : -0.018) : 0;
+      stones = stones.map(s => s.id === stoneId
+        ? { ...s, vx, vy, spin, active: false, launched: true }
+        : (launchedStone && s.team === launchedStone.team ? { ...s, active: false } : s));
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
     }
@@ -2298,6 +2336,9 @@
             if (shotStone.special === 'magnet' && target.plan === 'hit') weightedScore += 16;
             if (shotStone.special === 'sticky' && target.plan === 'score') weightedScore += 12;
             if (shotStone.special === 'speed' && target.plan === 'hit') weightedScore += 10;
+            if (shotStone.special === 'ghost' && target.plan === 'score') weightedScore += 8;
+            if (shotStone.special === 'swap' && target.plan === 'hit') weightedScore += 14;
+            if (shotStone.special === 'curve' && target.plan === 'guard') weightedScore += 8;
             weightedScore -= power * (target.plan === 'hit' ? 2.2 : 9.5);
             const candidate = { stoneId: shotStone.id, vx, vy, score: weightedScore, power, plan: target.plan };
             if (!best || candidate.score > best.score) best = candidate;
@@ -2519,6 +2560,12 @@
         stones = stones.map(s => {
           if (s.out) return s;
           const next = { ...s };
+          if (next.special === 'curve' && next.launched && (Math.abs(next.vx) + Math.abs(next.vy) > 0.35)) {
+            const spin = next.spin || 0.016;
+            const vx = next.vx, vy = next.vy;
+            next.vx = vx * Math.cos(spin) - vy * Math.sin(spin);
+            next.vy = vx * Math.sin(spin) + vy * Math.cos(spin);
+          }
           next.x += next.vx; next.y += next.vy;
           const friction = next.special === 'speed' && next.launched ? 0.996 : (next.special === 'sticky' && next.launched ? 0.975 : FRICTION);
           next.vx *= friction; next.vy *= friction;
