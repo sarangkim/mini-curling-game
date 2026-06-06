@@ -599,7 +599,15 @@
       { id: 'sticky', label: '끈끈이', color: '#22c55e', mark: 'G' },
       { id: 'guard', label: '가드', color: '#64748b', mark: 'D' },
       { id: 'ghost', label: '유령', color: '#a78bfa', mark: 'U' },
-      { id: 'swap', label: '스왑', color: '#f472b6', mark: 'W' }
+      { id: 'swap', label: '스왑', color: '#f472b6', mark: 'W' },
+      { id: 'rocket', label: '로켓', color: '#fb7185', mark: 'R' },
+      { id: 'freeze', label: '얼음', color: '#67e8f9', mark: 'I' },
+      { id: 'spring', label: '튕김', color: '#84cc16', mark: 'T' },
+      { id: 'anchor', label: '닻', color: '#475569', mark: 'A' },
+      { id: 'portal', label: '포털', color: '#8b5cf6', mark: 'O' },
+      { id: 'echo', label: '메아리', color: '#06b6d4', mark: 'E' },
+      { id: 'wind', label: '바람', color: '#14b8a6', mark: 'N' },
+      { id: 'quake', label: '지진', color: '#b45309', mark: 'Q' }
     ];
     const CPU_SETTLE_MAX_POWER = 3.35, CPU_HIT_MAX_POWER = 4.25;
     const AUDIO_COOLDOWN_MS = 35, COLLISION_SOUND_URL = 'curling_sound.mp3', PEER_PREFIX = 'mini-curling-room-';
@@ -962,6 +970,33 @@
         tone(659.25, t, 0.09, 'square', 0.075);
         tone(440, t + 0.08, 0.09, 'square', 0.07);
         tone(880, t + 0.16, 0.14, 'triangle', 0.08);
+      } else if (type === 'rocket') {
+        tone(392, t, 0.08, 'sawtooth', 0.08);
+        tone(784, t + 0.06, 0.12, 'sawtooth', 0.10);
+        tone(1568, t + 0.15, 0.13, 'square', 0.07);
+      } else if (type === 'freeze') {
+        tone(1046.5, t, 0.16, 'sine', 0.055);
+        tone(1318.51, t + 0.10, 0.22, 'triangle', 0.045);
+      } else if (type === 'spring') {
+        tone(523.25, t, 0.07, 'square', 0.08);
+        tone(987.77, t + 0.08, 0.11, 'square', 0.085);
+      } else if (type === 'anchor') {
+        tone(146.83, t, 0.18, 'triangle', 0.09);
+        tone(98, t + 0.14, 0.22, 'sine', 0.08);
+      } else if (type === 'portal') {
+        tone(329.63, t, 0.11, 'sine', 0.055);
+        tone(659.25, t + 0.08, 0.16, 'sine', 0.06);
+        tone(1318.51, t + 0.20, 0.15, 'triangle', 0.055);
+      } else if (type === 'echo') {
+        tone(440, t, 0.12, 'triangle', 0.055);
+        tone(554.37, t + 0.12, 0.18, 'triangle', 0.045);
+        tone(659.25, t + 0.25, 0.22, 'triangle', 0.04);
+      } else if (type === 'wind') {
+        tone(587.33, t, 0.20, 'sine', 0.05);
+        tone(739.99, t + 0.13, 0.22, 'sine', 0.045);
+      } else if (type === 'quake') {
+        tone(73.42, t, 0.22, 'sawtooth', 0.13);
+        tone(110, t + 0.10, 0.18, 'square', 0.09);
       }
     }
 
@@ -1025,14 +1060,18 @@
       const laneYTop = TABLE_MARGIN + 92;
       const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
       const startXs = [200, 280, 360, 440, 520];
-      const bluePowerIndex = Math.floor(Math.random() * startXs.length);
-      const orangePowerIndex = Math.floor(Math.random() * startXs.length);
-      const bluePower = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)].id;
-      const orangePower = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)].id;
+      const bluePowers = randomPowerSlots(startXs.length, 2);
+      const orangePowers = randomPowerSlots(startXs.length, 2);
       return [
-        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: n === orangePowerIndex ? orangePower : '', usedPower: false })),
-        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: n === bluePowerIndex ? bluePower : '', usedPower: false })),
+        ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: orangePowers.get(n) || '', usedPower: false })),
+        ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: bluePowers.get(n) || '', usedPower: false })),
       ];
+    }
+
+    function randomPowerSlots(total, count) {
+      const slots = [...Array(total).keys()].sort(() => Math.random() - 0.5).slice(0, Math.min(count, total));
+      const powers = [...POWER_TYPES].sort(() => Math.random() - 0.5);
+      return new Map(slots.map((slot, index) => [slot, powers[index % powers.length].id]));
     }
 
     function powerInfo(type) { return POWER_TYPES.find(p => p.id === type); }
@@ -1044,7 +1083,15 @@
         sticky: '부딪힌 뒤 속도를 크게 줄입니다. 중앙 근처에서 멈추거나 상대의 강한 샷을 붙잡는 용도입니다.',
         guard: '무겁게 버티는 방어형 스톤입니다. 충돌 후 자기 속도를 줄여 중앙 앞을 지키는 가드로 쓰기 좋습니다.',
         ghost: '첫 충돌을 한 번 통과하듯 지나갑니다. 앞에 스톤이 많아도 빈틈을 파고들 수 있습니다.',
-        swap: '처음 부딪힌 스톤과 위치를 바꿉니다. 상대의 높은 점수 스톤을 내 자리와 교환하는 역전용입니다.'
+        swap: '처음 부딪힌 스톤과 위치를 바꿉니다. 상대의 높은 점수 스톤을 내 자리와 교환하는 역전용입니다.',
+        rocket: '충돌 순간 로켓처럼 한 번 더 가속합니다. 강하게 밀어내는 공격 샷에 좋습니다.',
+        freeze: '부딪힌 주변을 얼려 양쪽 속도를 거의 멈춥니다. 중앙에 붙잡아 두거나 상대 돌을 얼릴 때 좋습니다.',
+        spring: '처음 닿은 스톤을 탱탱 튕겨냅니다. 복잡한 중앙을 한 번에 흔드는 재미가 있습니다.',
+        anchor: '닻처럼 그 자리에 버티며 상대 속도를 크게 깎습니다. 방어벽을 만드는 스톤입니다.',
+        portal: '충돌 후 진행 방향으로 순간 이동합니다. 앞을 막은 돌 너머로 빠져나가는 역전용입니다.',
+        echo: '충돌 충격이 주변 내 스톤에도 전해져 살짝 중앙 쪽으로 움직입니다. 연계 플레이용입니다.',
+        wind: '옆바람을 일으켜 상대 스톤을 사선으로 휘게 만듭니다. 직선 공격을 흐트러뜨립니다.',
+        quake: '작은 지진을 일으켜 가까운 스톤들을 흔듭니다. 뭉쳐 있는 하우스를 흔들 때 강합니다.'
       }[type] || '특별한 효과가 있는 파워스톤입니다.';
     }
     function renderPowerGuide() {
@@ -1066,6 +1113,14 @@
       if (stone.special === 'guard') return 2.15;
       if (stone.special === 'ghost') return 0.86;
       if (stone.special === 'swap') return 1.25;
+      if (stone.special === 'rocket') return 0.75;
+      if (stone.special === 'freeze') return 1.4;
+      if (stone.special === 'spring') return 0.95;
+      if (stone.special === 'anchor') return 2.35;
+      if (stone.special === 'portal') return 0.9;
+      if (stone.special === 'echo') return 1.2;
+      if (stone.special === 'wind') return 1.05;
+      if (stone.special === 'quake') return 1.55;
       return stone.special ? POWER_STONE_FORCE : 1;
     }
     function activeStoneLabel() {
@@ -1345,6 +1400,73 @@
         power.vy *= 0.42;
         other.vx *= 0.82;
         other.vy *= 0.82;
+      } else if (power.special === 'rocket') {
+        power.vx *= 1.55;
+        power.vy *= 1.55;
+        other.vx += power.vx * 0.16;
+        other.vy += power.vy * 0.16;
+      } else if (power.special === 'freeze') {
+        power.vx *= 0.12;
+        power.vy *= 0.12;
+        other.vx *= 0.12;
+        other.vy *= 0.12;
+        playPowerLaunchSound('freeze');
+        return true;
+      } else if (power.special === 'spring') {
+        other.vx += nx * 4.2;
+        other.vy += ny * 4.2;
+        power.vx -= nx * 1.8;
+        power.vy -= ny * 1.8;
+        playPowerLaunchSound('spring');
+        return true;
+      } else if (power.special === 'anchor') {
+        power.vx = 0;
+        power.vy = 0;
+        other.vx *= 0.25;
+        other.vy *= 0.25;
+        playPowerLaunchSound('anchor');
+        return true;
+      } else if (power.special === 'portal') {
+        if (pairKey) ghostPasses.set(pairKey, 12);
+        const speed = Math.max(1, Math.hypot(power.vx, power.vy));
+        power.x += (power.vx / speed) * 118;
+        power.y += (power.vy / speed) * 118;
+        power.vx *= 0.82;
+        power.vy *= 0.82;
+        clampInTable(power);
+        playPowerLaunchSound('portal');
+        spawnParticles(power.x, power.y, 'rgba(139,92,246,0.95)', 1.4);
+        return true;
+      } else if (power.special === 'echo') {
+        for (const s of stones) {
+          if (s.id === power.id || s.team !== power.team || s.out) continue;
+          const dist = Math.hypot(s.x - impactX, s.y - impactY);
+          if (dist > 190) continue;
+          const tx = CENTER_X - s.x;
+          const ty = CENTER_Y - s.y;
+          const tl = Math.max(1, Math.hypot(tx, ty));
+          const strength = 0.75 * (1 - dist / 210);
+          s.vx += (tx / tl) * strength;
+          s.vy += (ty / tl) * strength;
+          spawnParticles(s.x, s.y, 'rgba(6,182,212,0.8)', 0.42);
+        }
+      } else if (power.special === 'wind') {
+        other.vx += -ny * 3.3;
+        other.vy += nx * 3.3;
+        power.vx += -ny * 0.8;
+        power.vy += nx * 0.8;
+      } else if (power.special === 'quake') {
+        for (const s of stones) {
+          if (s.id === power.id || s.out) continue;
+          const dx = s.x - impactX;
+          const dy = s.y - impactY;
+          const dist = Math.max(1, Math.hypot(dx, dy));
+          if (dist > 180) continue;
+          const strength = 2.2 * (1 - dist / 190);
+          s.vx += (dx / dist) * strength;
+          s.vy += (dy / dist) * strength;
+          spawnParticles(s.x, s.y, 'rgba(180,83,9,0.76)', 0.45);
+        }
       }
       return false;
     }
@@ -3053,6 +3175,14 @@
             if (shotStone.special === 'ghost' && target.plan === 'score') weightedScore += 8;
             if (shotStone.special === 'swap' && target.plan === 'hit') weightedScore += 14;
             if (shotStone.special === 'guard' && target.plan === 'guard') weightedScore += 18;
+            if (shotStone.special === 'rocket' && target.plan === 'hit') weightedScore += 18;
+            if (shotStone.special === 'freeze' && target.plan === 'score') weightedScore += 14;
+            if (shotStone.special === 'spring' && target.plan === 'hit') weightedScore += 16;
+            if (shotStone.special === 'anchor' && target.plan === 'guard') weightedScore += 20;
+            if (shotStone.special === 'portal' && target.plan === 'score') weightedScore += 12;
+            if (shotStone.special === 'echo' && target.plan === 'score') weightedScore += 10;
+            if (shotStone.special === 'wind' && target.plan === 'hit') weightedScore += 10;
+            if (shotStone.special === 'quake' && target.plan === 'hit') weightedScore += 18;
             weightedScore -= power * (target.plan === 'hit' ? 2.2 : 9.5);
             const candidate = { stoneId: shotStone.id, vx, vy, score: weightedScore, power, plan: target.plan };
             if (!best || candidate.score > best.score) best = candidate;
@@ -3341,7 +3471,11 @@
           if (s.out) return s;
           const next = { ...s };
           next.x += next.vx; next.y += next.vy;
-          const friction = next.special === 'speed' && next.launched ? 0.996 : (next.special === 'sticky' && next.launched ? 0.975 : FRICTION);
+          const friction =
+            (next.special === 'speed' || next.special === 'rocket' || next.special === 'portal') && next.launched ? 0.996 :
+            (next.special === 'freeze' || next.special === 'anchor') && next.launched ? 0.982 :
+            next.special === 'sticky' && next.launched ? 0.975 :
+            FRICTION;
           next.vx *= friction; next.vy *= friction;
           const movingSpeed = Math.abs(next.vx) + Math.abs(next.vy);
           if (next.launched && next.special && Math.random() < 0.28 && movingSpeed > 0.5) {
