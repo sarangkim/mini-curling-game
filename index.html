@@ -626,7 +626,12 @@
       { id: 'dog', name: '강아지', mark: '멍', accent: '#fed7aa' },
       { id: 'sheep', name: '양', mark: '양', accent: '#f8fafc' },
       { id: 'monkey', name: '원숭이', mark: '몽', accent: '#d6a66a' },
-      { id: 'pig', name: '돼지', mark: '꿀', accent: '#fbcfe8' }
+      { id: 'pig', name: '돼지', mark: '꿀', accent: '#fbcfe8' },
+      { id: 'bear', name: '곰', mark: '곰', accent: '#c08457' },
+      { id: 'rabbit', name: '토끼', mark: '토', accent: '#f5f3ff' },
+      { id: 'penguin', name: '펭귄', mark: '펭', accent: '#bae6fd' },
+      { id: 'robot', name: '로봇', mark: '로', accent: '#cbd5e1' },
+      { id: 'dino', name: '공룡', mark: '용', accent: '#bbf7d0' }
     ];
     const RANK_LABELS = [
       '18급','17급','16급','15급','14급','13급','12급','11급','10급','9급','8급','7급','6급','5급','4급','3급','2급','1급',
@@ -772,6 +777,7 @@
     let pairContacts = new Set();
     let wallContacts = new Set();
     let magnetLinks = new Map();
+    let ghostPasses = new Map();
     let playerName = localStorage.getItem('miniCurlingPlayerName') || 'Player';
     let cpuStyle = localStorage.getItem('miniCurlingCpuStyle') || 'precise';
     let stoneSkin = 'classic';
@@ -1252,11 +1258,17 @@
           if (dist === 0 || dist >= minDist) continue;
           const pairKey = [a.id, b.id].sort().join('|');
           pairContacts.add(pairKey);
+          if (ghostPasses.has(pairKey)) {
+            const left = ghostPasses.get(pairKey) - 1;
+            if (left > 0) ghostPasses.set(pairKey, left);
+            else ghostPasses.delete(pairKey);
+            continue;
+          }
           const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
           a.x -= nx * overlap * 0.5; a.y -= ny * overlap * 0.5;
           b.x += nx * overlap * 0.5; b.y += ny * overlap * 0.5;
           if (!prevPairContacts.has(pairKey)) {
-            const skipped = triggerPowerCollision(a, b, nx, ny) || triggerPowerCollision(b, a, -nx, -ny);
+            const skipped = triggerPowerCollision(a, b, nx, ny, pairKey) || triggerPowerCollision(b, a, -nx, -ny, pairKey);
             if (skipped) continue;
           }
           const dvx = a.vx - b.vx, dvy = a.vy - b.vy, relVel = dvx * nx + dvy * ny;
@@ -1275,7 +1287,7 @@
       }
     }
 
-    function triggerPowerCollision(power, other, nx, ny) {
+    function triggerPowerCollision(power, other, nx, ny, pairKey = '') {
       if (!power.special || power.usedPower || !power.launched || power.out || other.out) return false;
       power.usedPower = true;
       const impactX = (power.x + other.x) / 2;
@@ -1294,9 +1306,12 @@
         return true;
       }
       if (power.special === 'ghost') {
-        power.x += power.vx * 2.4;
-        power.y += power.vy * 2.4;
+        if (pairKey) ghostPasses.set(pairKey, 18);
+        const speed = Math.max(1, Math.hypot(power.vx, power.vy));
+        power.x += (power.vx / speed) * STONE_R * 2.3;
+        power.y += (power.vy / speed) * STONE_R * 2.3;
         playPowerLaunchSound('ghost');
+        spawnParticles(power.x, power.y, 'rgba(167,139,250,0.95)', 1.1);
         return true;
       }
       if (power.special === 'swap') {
@@ -2566,6 +2581,7 @@
       matchStats = { shots: 0, wallHits: 0 };
       particles = [];
       magnetLinks.clear();
+      ghostPasses.clear();
       resultText.textContent = 'Ready';
       if (timerId) clearInterval(timerId);
       timerId = null;
@@ -3185,6 +3201,36 @@
         ctx.beginPath(); ctx.arc(-6, -3, 1.8, 0, Math.PI * 2); ctx.arc(6, -3, 1.8, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.ellipse(0, 4, 7, 4.5, 0, 0, Math.PI * 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(-2, 4, 1.1, 0, Math.PI * 2); ctx.arc(2, 4, 1.1, 0, Math.PI * 2); ctx.fill();
+      } else if (skin.id === 'bear') {
+        ctx.beginPath(); ctx.arc(-12, -9, 5, 0, Math.PI * 2); ctx.arc(12, -9, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-6, -3, 1.8, 0, Math.PI * 2); ctx.arc(6, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 4, 6, 4.5, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 2, 1.3, 0, Math.PI * 2); ctx.fill();
+      } else if (skin.id === 'rabbit') {
+        ctx.beginPath(); ctx.ellipse(-7, -14, 4, 11, -0.22, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(7, -14, 4, 11, 0.22, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-6, -2, 1.8, 0, Math.PI * 2); ctx.arc(6, -2, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-4, 6); ctx.moveTo(0, 2); ctx.lineTo(4, 6); ctx.stroke();
+      } else if (skin.id === 'penguin') {
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.ellipse(0, -1, 13, 15, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath(); ctx.ellipse(0, 3, 9, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath(); ctx.moveTo(-4, 1); ctx.lineTo(4, 1); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath(); ctx.arc(-5, -5, 1.8, 0, Math.PI * 2); ctx.arc(5, -5, 1.8, 0, Math.PI * 2); ctx.fill();
+      } else if (skin.id === 'robot') {
+        ctx.beginPath(); ctx.rect(-12, -12, 24, 22); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(0, -17); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, -18, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.rect(-8, -4, 5, 5); ctx.rect(3, -4, 5, 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-7, 7); ctx.lineTo(7, 7); ctx.stroke();
+      } else if (skin.id === 'dino') {
+        ctx.beginPath(); ctx.moveTo(-12, -8); ctx.lineTo(-6, -15); ctx.lineTo(0, -8); ctx.lineTo(6, -15); ctx.lineTo(12, -8); ctx.stroke();
+        ctx.beginPath(); ctx.arc(-6, -1, 1.8, 0, Math.PI * 2); ctx.arc(6, -1, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 6, 7, 0.18 * Math.PI, 0.82 * Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-13, 2); ctx.lineTo(-18, 0); ctx.moveTo(13, 2); ctx.lineTo(18, 0); ctx.stroke();
       }
       ctx.restore();
     }
@@ -3243,6 +3289,27 @@
           ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = info?.color || '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
           ctx.fillStyle = info?.color || '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; drawUprightText(info?.mark || 'P', s.x, s.y + 1);
         }
+        if (sparkleFxEnabled && s.team === myTeam) {
+          const pulse = 0.55 + Math.sin(performance.now() / 220 + s.x) * 0.18;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, STONE_R + 8, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(250,204,21,${pulse})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+          for (let k = 0; k < 3; k++) {
+            const a = performance.now() / 420 + k * Math.PI * 0.72 + s.y * 0.01;
+            const sx = s.x + Math.cos(a) * (STONE_R + 10);
+            const sy = s.y + Math.sin(a) * (STONE_R + 10);
+            ctx.fillStyle = 'rgba(255,255,255,0.88)';
+            ctx.beginPath();
+            ctx.moveTo(sx, sy - 4);
+            ctx.lineTo(sx + 2.5, sy);
+            ctx.lineTo(sx, sy + 4);
+            ctx.lineTo(sx - 2.5, sy);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
         ctx.beginPath(); ctx.arc(s.x - 7, s.y - 9, 8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fill();
       }
       for (const p of particles) {
@@ -3276,8 +3343,12 @@
           next.x += next.vx; next.y += next.vy;
           const friction = next.special === 'speed' && next.launched ? 0.996 : (next.special === 'sticky' && next.launched ? 0.975 : FRICTION);
           next.vx *= friction; next.vy *= friction;
-          if (next.launched && (next.special || (sparkleFxEnabled && next.team === myTeam)) && Math.random() < 0.28 && (Math.abs(next.vx) + Math.abs(next.vy) > 0.5)) {
+          const movingSpeed = Math.abs(next.vx) + Math.abs(next.vy);
+          if (next.launched && next.special && Math.random() < 0.28 && movingSpeed > 0.5) {
             spawnParticles(next.x, next.y, powerInfo(next.special)?.color || 'rgba(96,165,250,0.85)', 0.28);
+          }
+          if (next.launched && sparkleFxEnabled && next.team === myTeam && Math.random() < 0.55 && movingSpeed > 0.28) {
+            spawnParticles(next.x, next.y, Math.random() < 0.5 ? 'rgba(250,204,21,0.95)' : 'rgba(255,255,255,0.95)', 0.42);
           }
           if (Math.abs(next.vx) < MIN_SPEED) next.vx = 0;
           if (Math.abs(next.vy) < MIN_SPEED) next.vy = 0;
