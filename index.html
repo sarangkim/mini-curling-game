@@ -1097,16 +1097,34 @@
     function makeInitialStones() {
       const info = arenaInfo();
       const curved = info.shape === 'circle' || info.shape === 'ellipse';
-      const laneOffset = curved ? Math.max(210, (info.ry || info.rx || 312) - STONE_R - 36) : (BOARD_H / 2 - TABLE_MARGIN - 92);
-      const laneYTop = curved ? CENTER_Y - laneOffset : TABLE_MARGIN + 92;
-      const laneYBottom = curved ? CENTER_Y + laneOffset : BOARD_H - TABLE_MARGIN - 92;
-      const startXs = info.shape === 'circle' ? [260, 310, 360, 410, 460] : [200, 280, 360, 440, 520];
+      const layout = curved ? curvedArenaStartLayout(info) : {
+        topY: TABLE_MARGIN + 92,
+        bottomY: BOARD_H - TABLE_MARGIN - 92,
+        xs: [200, 280, 360, 440, 520]
+      };
+      const laneYTop = layout.topY;
+      const laneYBottom = layout.bottomY;
+      const startXs = layout.xs;
       const bluePowers = randomPowerSlots(startXs.length, 2);
       const orangePowers = randomPowerSlots(startXs.length, 2);
       return [
         ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: orangePowers.get(n) || '', usedPower: false })),
         ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: bluePowers.get(n) || '', usedPower: false })),
       ];
+    }
+
+    function curvedArenaStartLayout(info) {
+      const rx = (info.rx || 312) - STONE_R - 18;
+      const ry = (info.ry || info.rx || 312) - STONE_R - 18;
+      const halfWidth = Math.max(152, Math.min(196, rx - 34));
+      const safeY = ry * Math.sqrt(Math.max(0.12, 1 - Math.pow(halfWidth / rx, 2))) - 14;
+      const laneOffset = Math.max(178, Math.min(226, safeY));
+      const quarter = halfWidth / 2;
+      return {
+        topY: CENTER_Y - laneOffset,
+        bottomY: CENTER_Y + laneOffset,
+        xs: [CENTER_X - halfWidth, CENTER_X - quarter, CENTER_X, CENTER_X + quarter, CENTER_X + halfWidth].map(Math.round)
+      };
     }
 
     function arenaFriction(baseFriction, stone) {
