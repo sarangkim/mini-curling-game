@@ -133,9 +133,10 @@
       background: linear-gradient(to top, #22c55e 0%, #eab308 60%, #ef4444 100%); transition: height .05s linear;
     }
     .aim-badge {
-      position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); padding: 8px 10px; border-radius: 12px;
-      background: rgba(255,255,255,.88); border: 1px solid rgba(37,99,235,.24); font-size: 12px; color: #1e3a8a;
-      pointer-events: none; white-space: nowrap;
+      display: block; margin: 8px auto 0; width: fit-content; max-width: calc(100% - 28px);
+      padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.9);
+      border: 1px solid rgba(37,99,235,.22); font-size: 12px; color: #1e3a8a;
+      pointer-events: none; white-space: nowrap; text-align: center;
     }
     .entry-room-tools { display: none; }
     .lobby-help-card { display: grid; gap: 10px; }
@@ -479,7 +480,6 @@
 
         <div class="board-wrap">
           <canvas id="board" width="720" height="960"></canvas>
-          <div class="aim-badge" id="aimBadge">눌러서 조준</div>
           <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
           <div class="overlay" id="resultOverlay">
             <div class="overlay-card">
@@ -492,6 +492,7 @@
             </div>
           </div>
         </div>
+        <div class="aim-badge" id="aimBadge">눌러서 조준</div>
 
         <div class="stats">
           <div class="card"><div class="label">Blue remaining</div><div class="value" id="blueRemain">5</div></div>
@@ -544,7 +545,7 @@
           </div>
           <div class="card">
             <div class="label">파워스톤</div>
-            <div class="small">각 팀에 랜덤 파워스톤 1개가 나옵니다. 스피드, 자석, 폭탄, 끈끈이, 커브, 유령, 스왑 중 하나가 등장합니다.</div>
+            <div class="small">각 팀에 랜덤 파워스톤 2개가 나옵니다. 스톤 안의 글자와 색으로 종류를 구분하고, 도움말에서 전체 기능을 확인할 수 있습니다.</div>
           </div>
         </div>
 
@@ -562,7 +563,7 @@
         <div class="grid-2 game-extra" style="margin-top:12px;">
           <div class="card">
             <div class="label">How to play</div>
-            <div class="small">남은 스톤 중 하나를 눌러 선택한 뒤 조준선을 보고 손을 떼면 발사됩니다. 중앙부터 30 / 20 / 10점이며, 각 팀에 무작위 파워스톤 1개가 나옵니다. 파워스톤은 색과 글자로 종류가 표시되고, 로비의 How to play에서 자세히 볼 수 있습니다.</div>
+            <div class="small">남은 스톤 중 하나를 눌러 선택한 뒤 조준선을 보고 손을 떼면 발사됩니다. 중앙부터 30 / 20 / 10점이며, 각 팀에 무작위 파워스톤 2개가 나옵니다. 경기장 타입마다 벽 반사와 마찰이 달라집니다.</div>
           </div>
           <div class="card">
             <div class="label">Leaderboard (이 기기 저장)</div>
@@ -1096,7 +1097,11 @@
     }
     function renderPowerGuide() {
       if (!lobbyPowerGuide) return;
-      lobbyPowerGuide.innerHTML = POWER_TYPES.map(power => `
+      lobbyPowerGuide.innerHTML = powerGuideHtml();
+    }
+
+    function powerGuideHtml() {
+      return POWER_TYPES.map(power => `
         <div class="power-guide-item">
           <span class="power-icon" style="background:${power.color}">${escapeHtml(power.mark)}</span>
           <span>
@@ -1104,6 +1109,12 @@
             <span class="power-desc">${escapeHtml(powerDescription(power.id))}</span>
           </span>
         </div>
+      `).join('');
+    }
+
+    function arenaGuideHtml() {
+      return ARENA_TYPES.map(arena => `
+        <div class="help-step small"><strong>${escapeHtml(arena.name)}</strong> ${escapeHtml(arena.desc)}</div>
       `).join('');
     }
     function stoneForce(stone) {
@@ -1126,7 +1137,7 @@
     function activeStoneLabel() {
       const stone = activeStoneForTurn();
       const info = powerInfo(stone?.special);
-      return info ? `${info.label} 파워스톤 · 눌러서 조준` : '남은 스톤을 골라 눌러서 조준';
+      return info ? `${info.label} · 눌러서 조준` : '스톤 선택 · 눌러서 조준';
     }
     function stoppingPowerForDistance(distance) {
       return Math.max(0.55, distance * (1 - FRICTION) + MIN_SPEED);
@@ -2402,6 +2413,28 @@
         blocks[2].style.marginTop = '0';
         mounts.help.appendChild(blocks[2]);
       }
+      const powerHelp = document.createElement('div');
+      powerHelp.className = 'card stack';
+      powerHelp.style.marginTop = '10px';
+      powerHelp.innerHTML = `
+        <div>
+          <div class="label">파워스톤 설명</div>
+          <div class="small">각 팀에 랜덤 파워스톤 2개가 나오며, 스톤 안의 글자와 색으로 종류를 구분합니다.</div>
+        </div>
+        <div class="power-guide">${powerGuideHtml()}</div>
+      `;
+      mounts.help.appendChild(powerHelp);
+      const arenaHelp = document.createElement('div');
+      arenaHelp.className = 'card stack';
+      arenaHelp.style.marginTop = '10px';
+      arenaHelp.innerHTML = `
+        <div>
+          <div class="label">경기장 타입</div>
+          <div class="small">경기마다 경기장이 랜덤으로 바뀌며, 모양과 마찰에 따라 샷 감각이 달라집니다.</div>
+        </div>
+        <div class="help-steps">${arenaGuideHtml()}</div>
+      `;
+      mounts.help.appendChild(arenaHelp);
     }
 
     function openGameInfoSheet(tab = 'mission') {
