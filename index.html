@@ -417,6 +417,7 @@
             <div class="help-step small"><strong>점수</strong> 중앙에 가까울수록 30점, 20점, 10점입니다. 점수판에는 BLUE 50 = 30 + 20 처럼 어떤 스톤이 점수를 냈는지 표시됩니다.</div>
             <div class="help-step small"><strong>차례</strong> 파랑과 주황이 번갈아 5개씩 던집니다. 순서대로만 던질 필요 없이 남은 스톤 중 원하는 스톤을 골라 전략적으로 사용할 수 있습니다.</div>
             <div class="help-step small"><strong>승부</strong> 모든 스톤을 던지고 멈추면 총점이 높은 쪽이 이깁니다. 온라인 경기나 CPU 경기 결과는 레이팅과 급수에 반영됩니다.</div>
+            <div class="help-step small"><strong>경기장</strong> 경기마다 기본, 원형, 타원, 좁은 링크, 미끄러운 얼음판 중 하나가 나옵니다. 모양과 마찰이 달라 벽 샷과 힘 조절이 매번 달라집니다.</div>
           </div>
           <div class="power-guide" id="lobbyPowerGuide"></div>
         </div>
@@ -540,7 +541,10 @@
             <div class="small" id="walletHint">경기 신청에는 100G가 필요합니다. 골드는 시간이 지나면 회복됩니다.</div>
             <div class="shop-actions">
               <button id="claimGoldBtn" class="ghost">골드 회복</button>
-              <button id="buySparkleBtn" class="ghost">반짝임 구매</button>
+              <button id="buySparkleBtn" class="ghost">반짝임 3★</button>
+              <button id="buyArenaRerollBtn" class="ghost">경기장 리롤 2★</button>
+              <button id="buyPowerBoostBtn" class="ghost">파워 +1 4★</button>
+              <button id="buyGoldBonusBtn" class="ghost">골드 보너스 5★</button>
             </div>
           </div>
           <div class="card">
@@ -625,6 +629,14 @@
     const AI_SHOT_DELAY_MS = 850;
     const COLORS = { blue: '#2563eb', orange: '#f59e0b' };
     const CPU_STYLE_LABELS = { precise: '정밀형', aggressive: '공격형', defensive: '수비형' };
+    const ARENA_TYPES = [
+      { id: 'classic', name: '기본 링크', shape: 'octagon', desc: '가장 익숙한 표준 경기장입니다.', friction: 1, bounce: 1, inset: OCTAGON_INSET },
+      { id: 'circle', name: '원형 링크', shape: 'circle', desc: '벽 반사가 부드럽고 회전 샷이 잘 나옵니다.', friction: 0.998, bounce: 1.04, rx: 312, ry: 312 },
+      { id: 'oval', name: '타원 링크', shape: 'ellipse', desc: '위아래로 긴 타원이라 각도 계산이 달라집니다.', friction: 0.997, bounce: 1.02, rx: 282, ry: 396 },
+      { id: 'narrow', name: '좁은 링크', shape: 'octagon', desc: '충돌이 자주 나서 파워스톤 싸움이 강해집니다.', friction: 0.994, bounce: 1.08, inset: OCTAGON_INSET + 42 },
+      { id: 'ice', name: '미끄러운 얼음판', shape: 'octagon', desc: '마찰이 낮아 스톤이 더 오래 움직입니다.', friction: 1.004, bounce: 0.98, inset: OCTAGON_INSET }
+    ];
+    const ITEM_COSTS = { sparkle: 3, arenaReroll: 2, powerBoost: 4, goldBonus: 5 };
     const STONE_SKINS = [
       { id: 'classic', name: '기본', mark: '', accent: '#ffffff' },
       { id: 'smile', name: '스마일', mark: '^^', accent: '#fef08a' },
@@ -732,6 +744,9 @@
     const walletHint = $('walletHint');
     const claimGoldBtn = $('claimGoldBtn');
     const buySparkleBtn = $('buySparkleBtn');
+    const buyArenaRerollBtn = $('buyArenaRerollBtn');
+    const buyPowerBoostBtn = $('buyPowerBoostBtn');
+    const buyGoldBonusBtn = $('buyGoldBonusBtn');
     const powerFill = $('powerFill');
     const aimBadge = $('aimBadge');
     const resultOverlay = $('resultOverlay');
@@ -800,6 +815,7 @@
     let matchStats = { shots: 0, wallHits: 0 };
     let stones = [];
     let score = { blue: 0, orange: 0 };
+    let currentArena = 'classic';
 
     if (!CPU_STYLE_LABELS[cpuStyle]) cpuStyle = 'precise';
     if (!STONE_SKINS.some(skin => skin.id === stoneSkin)) stoneSkin = 'classic';
@@ -1044,7 +1060,28 @@
     function vibrate(ms = 18) { if (navigator.vibrate) navigator.vibrate(ms); }
     function randomCode() { return Math.random().toString(36).slice(2, 8).toUpperCase(); }
 
-    function octagonPoints(inset = OCTAGON_INSET) {
+    function arenaInfo(id = currentArena) {
+      return ARENA_TYPES.find(arena => arena.id === id) || ARENA_TYPES[0];
+    }
+
+    function randomArenaId() {
+      return ARENA_TYPES[Math.floor(Math.random() * ARENA_TYPES.length)].id;
+    }
+
+    function chooseArenaForMatch() {
+      let nextArena = randomArenaId();
+      const profile = loadProfile();
+      if ((profile.arenaRerolls || 0) > 0) {
+        const firstArena = nextArena;
+        const choices = ARENA_TYPES.filter(arena => arena.id !== firstArena);
+        nextArena = choices[Math.floor(Math.random() * choices.length)]?.id || firstArena;
+        profile.arenaRerolls -= 1;
+        saveProfile(profile);
+      }
+      currentArena = nextArena;
+    }
+
+    function octagonPoints(inset = arenaInfo().inset || OCTAGON_INSET) {
       return [
         { x: inset, y: TABLE_MARGIN },
         { x: BOARD_W - inset, y: TABLE_MARGIN },
@@ -1058,15 +1095,25 @@
     }
 
     function makeInitialStones() {
-      const laneYTop = TABLE_MARGIN + 92;
-      const laneYBottom = BOARD_H - TABLE_MARGIN - 92;
-      const startXs = [200, 280, 360, 440, 520];
+      const info = arenaInfo();
+      const curved = info.shape === 'circle' || info.shape === 'ellipse';
+      const laneOffset = curved ? Math.max(210, (info.ry || info.rx || 312) - STONE_R - 36) : (BOARD_H / 2 - TABLE_MARGIN - 92);
+      const laneYTop = curved ? CENTER_Y - laneOffset : TABLE_MARGIN + 92;
+      const laneYBottom = curved ? CENTER_Y + laneOffset : BOARD_H - TABLE_MARGIN - 92;
+      const startXs = info.shape === 'circle' ? [260, 310, 360, 410, 460] : [200, 280, 360, 440, 520];
       const bluePowers = randomPowerSlots(startXs.length, 2);
       const orangePowers = randomPowerSlots(startXs.length, 2);
       return [
         ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: orangePowers.get(n) || '', usedPower: false })),
         ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: bluePowers.get(n) || '', usedPower: false })),
       ];
+    }
+
+    function arenaFriction(baseFriction, stone) {
+      const info = arenaInfo();
+      let value = baseFriction * (info.friction || 1);
+      if (stone?.powerBoost && stone.launched) value = Math.min(0.999, value + 0.002);
+      return Math.max(0.965, Math.min(0.9995, value));
     }
 
     function randomPowerSlots(total, count) {
@@ -1285,6 +1332,43 @@
     }
 
     function clampInTable(s) {
+      const info = arenaInfo();
+      if (info.shape === 'circle' || info.shape === 'ellipse') {
+        const rx = info.rx || 312;
+        const ry = info.ry || rx;
+        const dx = s.x - CENTER_X;
+        const dy = s.y - CENTER_Y;
+        const limitX = Math.max(40, rx - STONE_R);
+        const limitY = Math.max(40, ry - STONE_R);
+        const d = Math.hypot(dx / limitX, dy / limitY);
+        if (d > 1) {
+          const wallKey = `${s.id}:arena-${info.id}`;
+          wallContacts.add(wallKey);
+          const px = CENTER_X + dx / d;
+          const py = CENTER_Y + dy / d;
+          const nx = (px - CENTER_X) / (limitX * limitX);
+          const ny = (py - CENTER_Y) / (limitY * limitY);
+          const nl = Math.hypot(nx, ny) || 1;
+          const ux = nx / nl, uy = ny / nl;
+          s.x = CENTER_X + (dx / d);
+          s.y = CENTER_Y + (dy / d);
+          const vn = s.vx * ux + s.vy * uy;
+          if (vn > 0) {
+            const impact = Math.min(1, Math.abs(vn) / 4.5);
+            if (!prevWallContacts.has(wallKey)) {
+              if (s.team === myTeam && s.launched) matchStats.wallHits += 1;
+              playCollisionSound(impact * 0.8);
+              vibrate(10);
+              spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
+              if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.8)) });
+            }
+            const arenaBounce = BOUNCE * (info.bounce || 1);
+            s.vx = s.vx - (1 + arenaBounce) * vn * ux;
+            s.vy = s.vy - (1 + arenaBounce) * vn * uy;
+          }
+        }
+        return s;
+      }
       const points = octagonPoints();
       for (let i = 0; i < points.length; i++) {
         const a = points[i], b = points[(i + 1) % points.length];
@@ -1307,8 +1391,9 @@
               spawnParticles(s.x, s.y, 'rgba(255,255,255,0.72)', impact);
               if (conn && isHost) sendMessage({ type: 'sfx', kind: 'collision', volume: Math.max(0.18, Math.min(0.95, impact * 0.8)) });
             }
-            s.vx = s.vx - (1 + BOUNCE) * vn * nx;
-            s.vy = s.vy - (1 + BOUNCE) * vn * ny;
+            const arenaBounce = BOUNCE * (info.bounce || 1);
+            s.vx = s.vx - (1 + arenaBounce) * vn * nx;
+            s.vy = s.vy - (1 + arenaBounce) * vn * ny;
           }
         }
       }
@@ -2066,16 +2151,44 @@
         showOverlay('이미 보유 중', '내 스톤이 움직일 때 추가 반짝임이 적용되어 있습니다.');
         return;
       }
-      if (profile.stars < 3) {
-        showOverlay('별이 부족합니다', '반짝임 아이템은 별 3개가 필요합니다. 매일 접속하면 별을 받을 수 있습니다.');
+      if (profile.stars < ITEM_COSTS.sparkle) {
+        showOverlay('별이 부족합니다', `반짝임 아이템은 별 ${ITEM_COSTS.sparkle}개가 필요합니다. 매일 접속하면 별을 받을 수 있습니다.`);
         return;
       }
-      profile.stars -= 3;
+      profile.stars -= ITEM_COSTS.sparkle;
       profile.sparkleFx = true;
       playShopSound();
       saveProfile(profile);
       renderProgress();
       showOverlay('아이템 구매 완료', '이제 내 일반 스톤도 움직일 때 살짝 반짝입니다.');
+    }
+
+    function buyCountItem(key, cost, title, desc) {
+      const profile = loadProfile();
+      applyWalletRegen(profile);
+      if (profile.stars < cost) {
+        showOverlay('별이 부족합니다', `${title} 아이템은 별 ${cost}개가 필요합니다.`);
+        renderProgress();
+        return;
+      }
+      profile.stars -= cost;
+      profile[key] = (profile[key] || 0) + 1;
+      playShopSound();
+      saveProfile(profile);
+      renderProgress();
+      showOverlay('아이템 구매 완료', desc);
+    }
+
+    function buyArenaReroll() {
+      buyCountItem('arenaRerolls', ITEM_COSTS.arenaReroll, '경기장 리롤', '다음 경기 시작 때 경기장을 한 번 더 랜덤으로 바꿉니다.');
+    }
+
+    function buyPowerBoost() {
+      buyCountItem('powerBoostShots', ITEM_COSTS.powerBoost, '파워 +1', '다음 내 샷 1회에 추진력이 살짝 더 붙습니다.');
+    }
+
+    function buyGoldBonus() {
+      buyCountItem('goldBonusGames', ITEM_COSTS.goldBonus, '골드 보너스', '다음 경기 완료 보상으로 골드 80G를 추가로 받습니다.');
     }
 
     function ratingDelta(result, summary, profile) {
@@ -2144,6 +2257,7 @@
         centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: [],
         gold: 300, stars: 0, lastGoldAt: Date.now(), lastStarDate: '', sparkleFx: false,
+        arenaRerolls: 0, powerBoostShots: 0, goldBonusGames: 0,
         nameLocked: false, nameKey: '', displayName: ''
       };
       try {
@@ -2363,6 +2477,11 @@
       profile.rankWins += result === 'win' ? 1 : 0;
       profile.rankDraws += result === 'draw' ? 1 : 0;
       profile.rankLosses += result === 'lose' ? 1 : 0;
+      if (profile.goldBonusGames > 0) {
+        profile.goldBonusGames -= 1;
+        profile.gold = Math.min(999999, (profile.gold || 0) + 80);
+        completedMissions.push({ name: '골드 보너스', desc: '아이템 효과로 80G를 받았습니다.' });
+      }
 
       for (const mission of currentMissions) {
         if (!progress.completed[mission.id] && mission.test(summary)) {
@@ -2459,9 +2578,7 @@
       sparkleFxEnabled = Boolean(profile.sparkleFx);
       goldText.textContent = `${profile.gold}G`;
       starText.textContent = `${profile.stars}`;
-      walletHint.textContent = profile.sparkleFx
-        ? `경기 신청 ${ENTRY_FEE_GOLD}G · 반짝임 보유 중 · 골드는 10분마다 ${GOLD_REGEN_AMOUNT}G 회복됩니다.`
-        : `경기 신청 ${ENTRY_FEE_GOLD}G · 별 3개로 반짝임을 살 수 있습니다. 골드는 10분마다 ${GOLD_REGEN_AMOUNT}G 회복됩니다.`;
+      walletHint.textContent = `경기 신청 ${ENTRY_FEE_GOLD}G · 반짝임 ${profile.sparkleFx ? '보유' : `${ITEM_COSTS.sparkle}★`} · 리롤 ${profile.arenaRerolls || 0}개 · 파워 ${profile.powerBoostShots || 0}개 · 보너스 ${profile.goldBonusGames || 0}개`;
       const rank = rankFromRating(profile.rating);
       applyRankTheme(profile);
       dailyMissionList.innerHTML = currentMissions.map(mission => {
@@ -2630,7 +2747,7 @@
 
     function enterGameScreen(reasonText = '게임이 진행 중입니다.') {
       const suffix = !conn ? ` · CPU ${CPU_STYLE_LABELS[cpuStyle] || '정밀형'}` : '';
-      gameSubText.textContent = reasonText + suffix;
+      gameSubText.textContent = `${reasonText} · 이번 경기장: ${arenaInfo().name}${suffix}`;
       showScreen('game');
     }
 
@@ -2727,9 +2844,10 @@
       }
     }
 
-    function resetGame() {
+    function resetGame({ newMatch = false } = {}) {
       phase = 'lobby';
       turn = 'blue';
+      if (newMatch && (!conn || isHost)) chooseArenaForMatch();
       resetTurnClock();
       stones = makeInitialStones();
       score = { blue: 0, orange: 0 };
@@ -2752,7 +2870,7 @@
 
     function startGame(chargeEntry = true) {
       if (chargeEntry && !spendEntryFee()) return false;
-      resetGame();
+      resetGame({ newMatch: true });
       phase = 'playing';
       resultText.textContent = 'Playing';
       resetTurnClock();
@@ -2778,7 +2896,7 @@
       if (!autoStartChallenge || !isHost || !conn?.open || playersConnected < 2 || phase === 'playing') return;
       autoStartChallenge = false;
       if (startGame()) {
-        sendMessage({ type: 'start' });
+        sendMessage({ type: 'start', currentArena });
         setChallengeStatus('상대가 수락해서 게임을 바로 시작했습니다.');
       } else {
         setChallengeStatus('골드가 부족해서 자동 시작하지 못했습니다.');
@@ -2790,7 +2908,7 @@
       pendingRematch = false;
       hideChallengeModal();
       hideOverlay();
-      if (startGame()) sendMessage({ type: 'rematch' });
+      if (startGame()) sendMessage({ type: 'rematch', currentArena });
     }
 
     function sendRematchRequest() {
@@ -2842,7 +2960,7 @@
     function currentStatePayload(extra = {}) {
       syncOwnSkin();
       syncOwnProfile();
-      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, teamSkins, playerProfiles, ...extra };
+      return { type: 'state', roomCode, phase, turn, timeLeft, hostTime: Number(timeSelect.value), stones, score, playersConnected, teamSkins, playerProfiles, currentArena, ...extra };
     }
 
     function applyRemoteState(payload) {
@@ -2853,6 +2971,7 @@
       if (payload.hostTime) timeSelect.value = String(payload.hostTime);
       if (payload.stones) stones = payload.stones;
       if (payload.score) score = payload.score;
+      if (payload.currentArena) currentArena = payload.currentArena;
       if (payload.teamSkins) teamSkins = { ...teamSkins, ...payload.teamSkins };
       if (payload.playerProfiles) playerProfiles = { ...playerProfiles, ...payload.playerProfiles };
       syncOwnSkin();
@@ -2928,9 +3047,9 @@
           broadcastState();
           return;
         }
-        if (data.type === 'start' && !isHost) { startGame(false); return; }
+        if (data.type === 'start' && !isHost) { if (data.currentArena) currentArena = data.currentArena; startGame(false); return; }
         if (data.type === 'reset') { resetGame(); return; }
-        if (data.type === 'rematch') { startGame(false); return; }
+        if (data.type === 'rematch') { if (data.currentArena) currentArena = data.currentArena; startGame(false); return; }
         if (data.type === 'rematch_request') { showRematchRequest(data.fromName); return; }
         if (data.type === 'rematch_accept') { if (isHost) autoStartRematch(); return; }
         if (data.type === 'rematch_decline') {
@@ -3055,13 +3174,26 @@
     function launchStone(stoneId, vx, vy) {
       const launchedStone = stones.find(s => s.id === stoneId);
       if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) matchStats.shots += 1;
+      let hasPowerBoost = false;
+      if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) {
+        const profile = loadProfile();
+        if ((profile.powerBoostShots || 0) > 0) {
+          profile.powerBoostShots -= 1;
+          hasPowerBoost = true;
+          vx *= 1.12;
+          vy *= 1.12;
+          playPowerLaunchSound('rocket');
+          saveProfile(profile);
+          renderProgress();
+        }
+      }
       if (launchedStone?.special && !launchedStone.launched) {
         playPowerLaunchSound(launchedStone.special);
         sendSfx('power', { powerType: launchedStone.special });
       }
       const spin = 0;
       stones = stones.map(s => s.id === stoneId
-        ? { ...s, vx, vy, spin, active: false, launched: true }
+        ? { ...s, vx, vy, spin, active: false, launched: true, powerBoost: hasPowerBoost }
         : (launchedStone && s.team === launchedStone.team ? { ...s, active: false } : s));
       if (!conn || isHost) return;
       sendMessage({ type: 'launch', stoneId, vx, vy });
@@ -3399,14 +3531,28 @@
     }
 
     function drawBoard() {
+      const info = arenaInfo();
       const grd = ctx.createRadialGradient(BOARD_W * 0.45, BOARD_H * 0.34, 80, BOARD_W * 0.5, BOARD_H * 0.35, BOARD_W * 0.82);
       grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.62, '#e0f2fe'); grd.addColorStop(1, '#93c5fd');
       ctx.fillStyle = '#bfdbfe'; ctx.fillRect(0, 0, BOARD_W, BOARD_H);
-      const outer = octagonPoints(), inner = octagonPoints(OCTAGON_INSET - 16);
+      const outer = octagonPoints(), inner = octagonPoints((info.inset || OCTAGON_INSET) - 16);
       const makePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
-      makePath(outer); ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 14; ctx.stroke();
-      makePath(inner); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 10; ctx.stroke();
-      ctx.save(); makePath(inner); ctx.clip();
+      const makeArenaPath = (pad = 0) => {
+        if (info.shape === 'circle' || info.shape === 'ellipse') {
+          ctx.beginPath();
+          ctx.ellipse(CENTER_X, CENTER_Y, (info.rx || 312) - pad, (info.ry || info.rx || 312) - pad, 0, 0, Math.PI * 2);
+        } else {
+          makePath(pad ? octagonPoints((info.inset || OCTAGON_INSET) - pad) : outer);
+        }
+      };
+      makeArenaPath(0); ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 14; ctx.stroke();
+      makeArenaPath(16); ctx.fillStyle = grd; ctx.fill(); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 10; ctx.stroke();
+      ctx.save(); makeArenaPath(16); ctx.clip();
+      ctx.fillStyle = 'rgba(30,64,175,0.88)';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      drawUprightText(info.name, CENTER_X, TABLE_MARGIN + 38);
       const shine = ctx.createRadialGradient(CENTER_X - 140, CENTER_Y - 240, 10, CENTER_X - 140, CENTER_Y - 240, 220);
       shine.addColorStop(0, 'rgba(255,255,255,0.78)'); shine.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = shine; ctx.beginPath(); ctx.ellipse(CENTER_X - 140, CENTER_Y - 240, 220, 90, 0, 0, Math.PI * 2); ctx.fill();
@@ -3509,7 +3655,8 @@
             (next.special === 'freeze' || next.special === 'anchor') && next.launched ? 0.982 :
             next.special === 'sticky' && next.launched ? 0.975 :
             FRICTION;
-          next.vx *= friction; next.vy *= friction;
+          const finalFriction = arenaFriction(friction, next);
+          next.vx *= finalFriction; next.vy *= finalFriction;
           const movingSpeed = Math.abs(next.vx) + Math.abs(next.vy);
           if (next.launched && next.special && Math.random() < 0.28 && movingSpeed > 0.5) {
             spawnParticles(next.x, next.y, powerInfo(next.special)?.color || 'rgba(96,165,250,0.85)', 0.28);
@@ -3584,6 +3731,9 @@
     });
     claimGoldBtn.addEventListener('click', claimGoldNow);
     buySparkleBtn.addEventListener('click', buySparkleTrail);
+    buyArenaRerollBtn.addEventListener('click', buyArenaReroll);
+    buyPowerBoostBtn.addEventListener('click', buyPowerBoost);
+    buyGoldBonusBtn.addEventListener('click', buyGoldBonus);
 
     function chooseStoneSkin(nextSkin) {
       if (!STONE_SKINS.some(skin => skin.id === nextSkin)) return;
@@ -3645,7 +3795,7 @@
       unlockAudio();
       if (conn && !isHost) return;
       if (!startGame()) return;
-      if (conn && isHost) sendMessage({ type: 'start' });
+      if (conn && isHost) sendMessage({ type: 'start', currentArena });
     });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
@@ -3663,7 +3813,7 @@
         }
         if (!isHost) return;
         if (!startGame()) return;
-        sendMessage({ type: 'rematch' });
+        sendMessage({ type: 'rematch', currentArena });
         return;
       }
       startGame();
