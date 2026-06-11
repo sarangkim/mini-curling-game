@@ -175,6 +175,14 @@
     .wallet-box { padding: 10px 12px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe; }
     .shop-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .shop-actions button { min-height: 42px; font-size: 13px; }
+    .equip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .equip-option {
+      min-height: 58px; padding: 8px; border-radius: 16px; border: 1px solid #bfdbfe;
+      background: #f8fbff; color: #1e3a8a; display: grid; align-content: center; gap: 3px;
+      font-size: 12px; font-weight: 800; text-align: center;
+    }
+    .equip-option.selected { background: #dbeafe; border-color: #2563eb; box-shadow: inset 0 0 0 2px rgba(37,99,235,.18); }
+    .equip-count { font-size: 11px; color: var(--muted); font-weight: 700; }
     .game-tools {
       position: sticky; bottom: 8px; z-index: 8; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
       margin-top: 10px; padding: 8px; border-radius: 18px; background: rgba(255,255,255,.88);
@@ -340,6 +348,14 @@
           <div class="skin-grid" id="stoneSkinList"></div>
         </div>
 
+        <div class="card stack">
+          <div>
+            <div class="label">경기 아이템 장착</div>
+            <div class="small">경기마다 하나만 장착됩니다. 보유 수량이 있어야 효과가 발동합니다.</div>
+          </div>
+          <div class="equip-grid" id="entryEquipSlotList"></div>
+        </div>
+
         <div class="grid-2 entry-room-tools">
           <div class="card stack">
             <div class="label">온라인 방 만들기</div>
@@ -406,6 +422,14 @@
             <div class="small">방에 들어온 뒤에도 캐릭터를 바꿀 수 있고, 상대에게 바로 표시됩니다.</div>
           </div>
           <div class="skin-grid" id="lobbyStoneSkinList"></div>
+        </div>
+
+        <div class="card stack">
+          <div>
+            <div class="label">경기 아이템 장착</div>
+            <div class="small">시작 전에 하나만 고르세요. 온라인전은 내 아이템만 내 쪽에 적용됩니다.</div>
+          </div>
+          <div class="equip-grid" id="lobbyEquipSlotList"></div>
         </div>
 
         <div class="card lobby-help-card">
@@ -637,6 +661,12 @@
       { id: 'ice', name: '미끄러운 얼음판', shape: 'octagon', desc: '마찰이 낮아 스톤이 더 오래 움직입니다.', friction: 1.004, bounce: 0.98, inset: OCTAGON_INSET }
     ];
     const ITEM_COSTS = { sparkle: 3, arenaReroll: 2, powerBoost: 4, goldBonus: 5 };
+    const EQUIP_ITEMS = [
+      { id: '', name: '미장착', key: '', desc: '아이템 없이 실력으로 승부합니다.' },
+      { id: 'arenaReroll', name: '경기장 리롤', key: 'arenaRerolls', desc: '경기 시작 때 경기장을 한 번 더 랜덤 변경' },
+      { id: 'powerBoost', name: '파워 +1', key: 'powerBoostShots', desc: '내 첫 샷 1회 추진력 증가' },
+      { id: 'goldBonus', name: '골드 보너스', key: 'goldBonusGames', desc: '경기 완료 시 80G 추가' }
+    ];
     const STONE_SKINS = [
       { id: 'classic', name: '기본', mark: '', accent: '#ffffff' },
       { id: 'smile', name: '스마일', mark: '^^', accent: '#fef08a' },
@@ -712,6 +742,8 @@
     const signOutBtn = $('signOutBtn');
     const stoneSkinList = $('stoneSkinList');
     const lobbyStoneSkinList = $('lobbyStoneSkinList');
+    const entryEquipSlotList = $('entryEquipSlotList');
+    const lobbyEquipSlotList = $('lobbyEquipSlotList');
     const lobbyPowerGuide = $('lobbyPowerGuide');
     const joinCodeInput = $('joinCodeInput');
     const turnDot = $('turnDot');
@@ -1071,11 +1103,12 @@
     function chooseArenaForMatch() {
       let nextArena = randomArenaId();
       const profile = loadProfile();
-      if ((profile.arenaRerolls || 0) > 0) {
+      if (profile.equippedItem === 'arenaReroll' && (profile.arenaRerolls || 0) > 0) {
         const firstArena = nextArena;
         const choices = ARENA_TYPES.filter(arena => arena.id !== firstArena);
         nextArena = choices[Math.floor(Math.random() * choices.length)]?.id || firstArena;
         profile.arenaRerolls -= 1;
+        if (profile.arenaRerolls <= 0) profile.equippedItem = '';
         saveProfile(profile);
       }
       currentArena = nextArena;
@@ -1100,13 +1133,20 @@
       const layout = curved ? curvedArenaStartLayout(info) : {
         topY: TABLE_MARGIN + 92,
         bottomY: BOARD_H - TABLE_MARGIN - 92,
-        xs: [200, 280, 360, 440, 520]
+        xs: [200, 280, 360, 440, 520],
+        positions: null
       };
-      const laneYTop = layout.topY;
-      const laneYBottom = layout.bottomY;
       const startXs = layout.xs;
       const bluePowers = randomPowerSlots(startXs.length, 2);
       const orangePowers = randomPowerSlots(startXs.length, 2);
+      if (layout.positions) {
+        return [
+          ...layout.positions.orange.map((p, n) => ({ id: `orange-${n}`, team: 'orange', x: p.x, y: p.y, vx: 0, vy: 0, active: false, launched: false, out: false, special: orangePowers.get(n) || '', usedPower: false })),
+          ...layout.positions.blue.map((p, n) => ({ id: `blue-${n}`, team: 'blue', x: p.x, y: p.y, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: bluePowers.get(n) || '', usedPower: false })),
+        ];
+      }
+      const laneYTop = layout.topY;
+      const laneYBottom = layout.bottomY;
       return [
         ...startXs.map((x, n) => ({ id: `orange-${n}`, team: 'orange', x, y: laneYTop, vx: 0, vy: 0, active: false, launched: false, out: false, special: orangePowers.get(n) || '', usedPower: false })),
         ...startXs.map((x, n) => ({ id: `blue-${n}`, team: 'blue', x, y: laneYBottom, vx: 0, vy: 0, active: n === 0, launched: false, out: false, special: bluePowers.get(n) || '', usedPower: false })),
@@ -1120,10 +1160,23 @@
       const safeY = ry * Math.sqrt(Math.max(0.12, 1 - Math.pow(halfWidth / rx, 2))) - 14;
       const laneOffset = Math.max(178, Math.min(226, safeY));
       const quarter = halfWidth / 2;
+      const rowGap = Math.max(STONE_R * 2.9, 74);
+      const spread = Math.max(STONE_R * 3.0, Math.min(118, halfWidth * 0.72));
+      const makeRows = (baseY, dir) => [
+        { x: CENTER_X - spread, y: baseY },
+        { x: CENTER_X, y: baseY },
+        { x: CENTER_X + spread, y: baseY },
+        { x: CENTER_X - spread / 2, y: baseY + dir * rowGap },
+        { x: CENTER_X + spread / 2, y: baseY + dir * rowGap }
+      ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
       return {
         topY: CENTER_Y - laneOffset,
         bottomY: CENTER_Y + laneOffset,
-        xs: [CENTER_X - halfWidth, CENTER_X - quarter, CENTER_X, CENTER_X + quarter, CENTER_X + halfWidth].map(Math.round)
+        xs: [CENTER_X - halfWidth, CENTER_X - quarter, CENTER_X, CENTER_X + quarter, CENTER_X + halfWidth].map(Math.round),
+        positions: {
+          orange: makeRows(CENTER_Y - laneOffset, 1),
+          blue: makeRows(CENTER_Y + laneOffset, -1)
+        }
       };
     }
 
@@ -2073,6 +2126,35 @@
       lobbyStoneSkinList.innerHTML = html;
     }
 
+    function equipItemById(id) {
+      return EQUIP_ITEMS.find(item => item.id === id) || EQUIP_ITEMS[0];
+    }
+
+    function renderEquipSlots() {
+      const profile = loadProfile();
+      const current = profile.equippedItem || '';
+      const html = EQUIP_ITEMS.map(item => {
+        const count = item.key ? (profile[item.key] || 0) : '-';
+        return `
+          <button class="equip-option ${item.id === current ? 'selected' : ''}" type="button" data-equip-item="${escapeHtml(item.id)}" aria-pressed="${item.id === current}">
+            <span>${escapeHtml(item.name)}</span>
+            <span class="equip-count">${item.key ? `${count}개` : item.desc}</span>
+          </button>
+        `;
+      }).join('');
+      entryEquipSlotList.innerHTML = html;
+      lobbyEquipSlotList.innerHTML = html;
+    }
+
+    function chooseEquipItem(id) {
+      const item = equipItemById(id);
+      const profile = loadProfile();
+      profile.equippedItem = item.id;
+      saveProfile(profile);
+      renderEquipSlots();
+      renderProgress();
+    }
+
     function todayKey() {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -2275,7 +2357,7 @@
         centerHits: 0, scoringStones: 0, bigScoreGames: 0, shutouts: 0,
         onlineGames: 0, missionsCompleted: 0, unlockedTitles: [],
         gold: 300, stars: 0, lastGoldAt: Date.now(), lastStarDate: '', sparkleFx: false,
-        arenaRerolls: 0, powerBoostShots: 0, goldBonusGames: 0,
+        arenaRerolls: 0, powerBoostShots: 0, goldBonusGames: 0, equippedItem: '',
         nameLocked: false, nameKey: '', displayName: ''
       };
       try {
@@ -2495,8 +2577,9 @@
       profile.rankWins += result === 'win' ? 1 : 0;
       profile.rankDraws += result === 'draw' ? 1 : 0;
       profile.rankLosses += result === 'lose' ? 1 : 0;
-      if (profile.goldBonusGames > 0) {
+      if (profile.equippedItem === 'goldBonus' && profile.goldBonusGames > 0) {
         profile.goldBonusGames -= 1;
+        if (profile.goldBonusGames <= 0) profile.equippedItem = '';
         profile.gold = Math.min(999999, (profile.gold || 0) + 80);
         completedMissions.push({ name: '골드 보너스', desc: '아이템 효과로 80G를 받았습니다.' });
       }
@@ -2597,6 +2680,7 @@
       goldText.textContent = `${profile.gold}G`;
       starText.textContent = `${profile.stars}`;
       walletHint.textContent = `경기 신청 ${ENTRY_FEE_GOLD}G · 반짝임 ${profile.sparkleFx ? '보유' : `${ITEM_COSTS.sparkle}★`} · 리롤 ${profile.arenaRerolls || 0}개 · 파워 ${profile.powerBoostShots || 0}개 · 보너스 ${profile.goldBonusGames || 0}개`;
+      renderEquipSlots();
       const rank = rankFromRating(profile.rating);
       applyRankTheme(profile);
       dailyMissionList.innerHTML = currentMissions.map(mission => {
@@ -3195,8 +3279,9 @@
       let hasPowerBoost = false;
       if (launchedStone && launchedStone.team === myTeam && !launchedStone.launched) {
         const profile = loadProfile();
-        if ((profile.powerBoostShots || 0) > 0) {
+        if (profile.equippedItem === 'powerBoost' && (profile.powerBoostShots || 0) > 0) {
           profile.powerBoostShots -= 1;
+          if (profile.powerBoostShots <= 0) profile.equippedItem = '';
           hasPowerBoost = true;
           vx *= 1.12;
           vy *= 1.12;
@@ -3613,8 +3698,12 @@
         drawStoneSkin(s);
         if (s.special) {
           const info = powerInfo(s.special);
+          const badgeX = s.x + STONE_R * 0.52;
+          const badgeY = s.y - STONE_R * 0.52;
           ctx.beginPath(); ctx.arc(s.x, s.y, STONE_R - 7, 0, Math.PI * 2); ctx.strokeStyle = info?.color || '#fef08a'; ctx.lineWidth = 4; ctx.stroke();
-          ctx.fillStyle = info?.color || '#fef08a'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; drawUprightText(info?.mark || 'P', s.x, s.y + 1);
+          ctx.beginPath(); ctx.arc(badgeX, badgeY, 11, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill();
+          ctx.lineWidth = 3; ctx.strokeStyle = info?.color || '#fef08a'; ctx.stroke();
+          ctx.fillStyle = '#0f172a'; ctx.font = '900 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; drawUprightText(info?.mark || 'P', badgeX, badgeY + 0.5);
         }
         if (sparkleFxEnabled && s.team === myTeam) {
           const pulse = 0.55 + Math.sin(performance.now() / 220 + s.x) * 0.18;
@@ -3771,8 +3860,16 @@
       chooseStoneSkin(button.dataset.skin);
     }
 
+    function handleEquipPick(e) {
+      const button = e.target.closest('[data-equip-item]');
+      if (!button) return;
+      chooseEquipItem(button.dataset.equipItem || '');
+    }
+
     stoneSkinList.addEventListener('click', handleSkinPick);
     lobbyStoneSkinList.addEventListener('click', handleSkinPick);
+    entryEquipSlotList.addEventListener('click', handleEquipPick);
+    lobbyEquipSlotList.addEventListener('click', handleEquipPick);
     onlinePlayerList.addEventListener('click', (e) => {
       const button = e.target.closest('[data-challenge-uid]');
       if (!button) return;
