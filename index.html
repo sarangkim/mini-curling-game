@@ -695,7 +695,7 @@
       { id: 'circle', name: '원형 링크', shape: 'circle', desc: '벽 반사가 부드럽고 회전 샷이 잘 나옵니다.', friction: 0.998, bounce: 1.04, rx: 312, ry: 312 },
       { id: 'oval', name: '타원 링크', shape: 'ellipse', desc: '위아래로 긴 타원이라 각도 계산이 달라집니다.', friction: 0.997, bounce: 1.02, rx: 282, ry: 396 },
       { id: 'narrow', name: '좁은 링크', shape: 'octagon', desc: '충돌이 자주 나서 파워스톤 싸움이 강해집니다.', friction: 0.994, bounce: 1.08, inset: OCTAGON_INSET + 42 },
-      { id: 'ice', name: '미끄러운 얼음판', shape: 'octagon', desc: '마찰이 낮아 스톤이 더 오래 움직입니다.', friction: 1.004, bounce: 0.98, inset: OCTAGON_INSET }
+      { id: 'ice', name: '미끄러운 얼음판', shape: 'octagon', desc: '초반에는 길게 미끄러지고 마지막 저속 구간은 빨리 정리됩니다.', friction: 1.002, settleFriction: 0.982, bounce: 0.98, inset: OCTAGON_INSET }
     ];
     const ITEM_COSTS = { sparkle: 3, arenaReroll: 2, powerBoost: 4, goldBonus: 5 };
     const EQUIP_ITEMS = [
@@ -1198,12 +1198,12 @@
     function curvedArenaStartLayout(info) {
       const rx = (info.rx || 312) - STONE_R - 18;
       const ry = (info.ry || info.rx || 312) - STONE_R - 18;
-      const halfWidth = Math.max(152, Math.min(196, rx - 34));
-      const safeY = ry * Math.sqrt(Math.max(0.12, 1 - Math.pow(halfWidth / rx, 2))) - 14;
-      const laneOffset = Math.max(178, Math.min(226, safeY));
+      const halfWidth = Math.max(116, Math.min(154, rx * 0.48));
+      const safeY = ry * Math.sqrt(Math.max(0.12, 1 - Math.pow(halfWidth / rx, 2))) - STONE_R - 10;
+      const laneOffset = Math.max(220, Math.min(ry - STONE_R - 8, safeY, ry * 0.86));
       const quarter = halfWidth / 2;
-      const rowGap = Math.max(STONE_R * 2.9, 74);
-      const spread = Math.max(STONE_R * 3.0, Math.min(118, halfWidth * 0.72));
+      const rowGap = Math.max(STONE_R * 2.35, Math.min(62, laneOffset - SCORING_R - STONE_R - 18));
+      const spread = Math.max(STONE_R * 2.45, Math.min(108, halfWidth * 0.72));
       const makeRows = (baseY, dir) => [
         { x: CENTER_X - spread, y: baseY },
         { x: CENTER_X, y: baseY },
@@ -1227,6 +1227,12 @@
       let value = baseFriction * (info.friction || 1);
       if (stone?.powerBoost && stone.launched) value = Math.min(0.999, value + 0.002);
       return Math.max(0.965, Math.min(0.9995, value));
+    }
+
+    function applyArenaSettleDamping(stone, movingSpeed) {
+      const settleFriction = arenaInfo().settleFriction;
+      if (!settleFriction || !stone.launched || movingSpeed > 0.55) return stone;
+      return { ...stone, vx: stone.vx * settleFriction, vy: stone.vy * settleFriction };
     }
 
     function randomPowerSlots(total, count) {
@@ -3889,6 +3895,8 @@
           const finalFriction = arenaFriction(friction, next);
           next.vx *= finalFriction; next.vy *= finalFriction;
           const movingSpeed = Math.abs(next.vx) + Math.abs(next.vy);
+          const settled = applyArenaSettleDamping(next, movingSpeed);
+          next.vx = settled.vx; next.vy = settled.vy;
           if (next.launched && next.special && Math.random() < 0.28 && movingSpeed > 0.5) {
             spawnParticles(next.x, next.y, powerInfo(next.special)?.color || 'rgba(96,165,250,0.85)', 0.28);
           }
