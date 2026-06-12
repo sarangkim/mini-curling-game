@@ -112,6 +112,25 @@
       min-width: min(84%, 390px); background: rgba(255,255,255,.96); border: 1px solid #93c5fd; border-radius: 24px;
       padding: 18px; text-align: center; box-shadow: 0 20px 40px rgba(37,99,235,.18);
     }
+    .start-card-overlay {
+      position: absolute; inset: 0; z-index: 5; display: grid; place-items: center;
+      padding: 18px; background: linear-gradient(to bottom, rgba(219,234,254,.52), rgba(15,23,42,.18));
+      opacity: 0; pointer-events: none; transform: scale(.98); transition: opacity .18s ease, transform .18s ease;
+    }
+    .start-card-overlay.show { opacity: 1; pointer-events: auto; transform: scale(1); }
+    .start-card {
+      width: min(86%, 360px); padding: 18px; border-radius: 24px; background: rgba(255,255,255,.96);
+      border: 1px solid rgba(147,197,253,.95); box-shadow: 0 22px 42px rgba(37,99,235,.2);
+      display: grid; gap: 10px; text-align: left;
+    }
+    .start-card-title { font-size: 22px; font-weight: 900; color: #0f172a; text-align: center; }
+    .start-card-row {
+      display: grid; grid-template-columns: 86px 1fr; gap: 8px; align-items: center;
+      padding: 9px 10px; border-radius: 14px; background: #f8fbff; border: 1px solid #dbeafe;
+    }
+    .start-card-label { font-size: 12px; font-weight: 900; color: #2563eb; }
+    .start-card-value { font-size: 14px; font-weight: 900; color: #0f172a; }
+    .start-card-note { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.45; }
     .overlay-title { font-size: 30px; font-weight: 900; margin-bottom: 8px; }
     .overlay-sub { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; }
     .challenge-modal {
@@ -506,6 +525,24 @@
         <div class="board-wrap">
           <canvas id="board" width="720" height="960"></canvas>
           <div class="power-wrap"><div class="power-fill" id="powerFill"></div></div>
+          <div class="start-card-overlay" id="startCardOverlay" aria-live="polite">
+            <div class="start-card">
+              <div class="start-card-title">이번 경기 준비</div>
+              <div class="start-card-row">
+                <span class="start-card-label">경기장</span>
+                <span class="start-card-value" id="startArenaText">기본 링크</span>
+              </div>
+              <div class="start-card-row">
+                <span class="start-card-label">장착 아이템</span>
+                <span class="start-card-value" id="startItemText">미장착</span>
+              </div>
+              <div class="start-card-row">
+                <span class="start-card-label">파워스톤</span>
+                <span class="start-card-value" id="startPowerText">각 팀 2개 등장</span>
+              </div>
+              <div class="start-card-note">잠시 후 바로 시작됩니다.</div>
+            </div>
+          </div>
           <div class="overlay" id="resultOverlay">
             <div class="overlay-card">
               <div class="overlay-title" id="overlayTitle">Ready</div>
@@ -781,6 +818,10 @@
     const buyGoldBonusBtn = $('buyGoldBonusBtn');
     const powerFill = $('powerFill');
     const aimBadge = $('aimBadge');
+    const startCardOverlay = $('startCardOverlay');
+    const startArenaText = $('startArenaText');
+    const startItemText = $('startItemText');
+    const startPowerText = $('startPowerText');
     const resultOverlay = $('resultOverlay');
     const overlayTitle = $('overlayTitle');
     const overlaySub = $('overlaySub');
@@ -803,6 +844,7 @@
     let turn = 'blue';
     let timeLeft = 20;
     let timerId = null;
+    let startCardTimer = null;
     let drag = null;
     let particles = [];
     let audioCtx = null;
@@ -1212,6 +1254,72 @@
         wind: '옆바람을 일으켜 상대 스톤을 사선으로 휘게 만듭니다. 직선 공격을 흐트러뜨립니다.',
         quake: '작은 지진을 일으켜 가까운 스톤들을 흔듭니다. 뭉쳐 있는 하우스를 흔들 때 강합니다.'
       }[type] || '특별한 효과가 있는 파워스톤입니다.';
+    }
+
+    function equippedItemName(itemId) {
+      return EQUIP_ITEMS.find(item => item.id === itemId)?.name || '미장착';
+    }
+
+    function powerStoneCount(team) {
+      return stones.filter(stone => stone.team === team && stone.special).length;
+    }
+
+    function matchStartSummary(itemName) {
+      const bluePowerCount = powerStoneCount('blue');
+      const orangePowerCount = powerStoneCount('orange');
+      const powerText = bluePowerCount === orangePowerCount
+        ? `각 팀 ${bluePowerCount}개 등장`
+        : `BLUE ${bluePowerCount}개 · ORANGE ${orangePowerCount}개`;
+      return {
+        arena: arenaInfo().name,
+        item: itemName || '미장착',
+        power: powerText
+      };
+    }
+
+    function showStartCard(summary) {
+      startArenaText.textContent = summary.arena;
+      startItemText.textContent = summary.item;
+      startPowerText.textContent = summary.power;
+      startCardOverlay.classList.add('show');
+    }
+
+    function hideStartCard() {
+      startCardOverlay.classList.remove('show');
+    }
+
+    function clearStartCardTimer() {
+      if (startCardTimer) clearTimeout(startCardTimer);
+      startCardTimer = null;
+    }
+
+    function startTurnTimer() {
+      if (timerId) clearInterval(timerId);
+      timerId = setInterval(() => {
+        if (phase !== 'playing') return;
+        if (!allStopped()) {
+          updateHud();
+          broadcastState({ timerOnly: true });
+          return;
+        }
+        timeLeft = Math.max(0, timeLeft - 1);
+        if (timeLeft === 0) {
+          if (!conn || isHost) advanceTurn(true);
+          return;
+        }
+        updateHud();
+        broadcastState({ timerOnly: true });
+      }, 1000);
+    }
+
+    function beginMatchAfterIntro() {
+      hideStartCard();
+      phase = 'playing';
+      resultText.textContent = 'Playing';
+      resetTurnClock();
+      startTurnTimer();
+      updateHud();
+      broadcastState();
     }
     function renderPowerGuide() {
       if (!lobbyPowerGuide) return;
@@ -2870,7 +2978,7 @@
     }
 
     function forfeitMatch() {
-      if (phase !== 'playing') {
+      if (phase !== 'playing' && phase !== 'countdown') {
         if (roomCode) enterLobbyScreen();
         else enterEntryScreen();
         return;
@@ -2960,9 +3068,11 @@
       resultText.textContent = 'Ready';
       if (timerId) clearInterval(timerId);
       timerId = null;
+      clearStartCardTimer();
       if (aiShotTimeout) { clearTimeout(aiShotTimeout); aiShotTimeout = null; }
       powerFill.style.height = '0%';
       aimBadge.textContent = activeStoneLabel();
+      hideStartCard();
       hideOverlay();
       renderProgress();
       updateHud();
@@ -2971,34 +3081,28 @@
     }
 
     function startGame(chargeEntry = true) {
+      const introItemName = equippedItemName(loadProfile().equippedItem);
       if (chargeEntry && !spendEntryFee()) return false;
       resetGame({ newMatch: true });
-      phase = 'playing';
-      resultText.textContent = 'Playing';
+      const introSummary = matchStartSummary(introItemName);
+      phase = 'countdown';
+      resultText.textContent = 'Starting';
       resetTurnClock();
       playStartSound();
       enterGameScreen(conn ? '온라인 대전이 시작되었습니다.' : 'CPU와 대전이 시작되었습니다.');
-      if (timerId) clearInterval(timerId);
-      timerId = setInterval(() => {
-        if (phase !== 'playing') return;
-        timeLeft = Math.max(0, timeLeft - 1);
-        if (timeLeft === 0) {
-          if (!conn || isHost) advanceTurn(true);
-          return;
-        }
-        updateHud();
-        broadcastState({ timerOnly: true });
-      }, 1000);
+      showStartCard(introSummary);
       updateHud();
       broadcastState();
+      clearStartCardTimer();
+      startCardTimer = setTimeout(beginMatchAfterIntro, 2000);
       return true;
     }
 
     function maybeAutoStartChallenge() {
-      if (!autoStartChallenge || !isHost || !conn?.open || playersConnected < 2 || phase === 'playing') return;
+      if (!autoStartChallenge || !isHost || !conn?.open || playersConnected < 2 || phase === 'playing' || phase === 'countdown') return;
       autoStartChallenge = false;
       if (startGame()) {
-        sendMessage({ type: 'start', currentArena });
+        sendMessage({ type: 'start', currentArena, stones });
         setChallengeStatus('상대가 수락해서 게임을 바로 시작했습니다.');
       } else {
         setChallengeStatus('골드가 부족해서 자동 시작하지 못했습니다.');
@@ -3010,7 +3114,7 @@
       pendingRematch = false;
       hideChallengeModal();
       hideOverlay();
-      if (startGame()) sendMessage({ type: 'rematch', currentArena });
+      if (startGame()) sendMessage({ type: 'rematch', currentArena, stones });
     }
 
     function sendRematchRequest() {
@@ -3045,7 +3149,9 @@
       startBtn.disabled = conn ? !(isHost && playersConnected === 2) : false;
       timeSelect.disabled = conn ? !isHost : false;
       inviteLinkBox.textContent = onlineNoticeMessage || (roomCode ? makeInviteLink() : '방을 만들면 초대 링크가 여기에 표시됩니다.');
-      aimBadge.textContent = canControlTurn() ? activeStoneLabel() : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다');
+      aimBadge.textContent = phase === 'countdown'
+        ? '이번 경기 규칙을 확인하세요'
+        : (canControlTurn() ? activeStoneLabel() : (isAIMode() ? '컴퓨터가 생각 중입니다' : '상대 차례입니다'));
     }
 
     function shouldFlipBoard() {
@@ -3149,9 +3255,27 @@
           broadcastState();
           return;
         }
-        if (data.type === 'start' && !isHost) { if (data.currentArena) currentArena = data.currentArena; startGame(false); return; }
+        if (data.type === 'start' && !isHost) {
+          if (data.currentArena) currentArena = data.currentArena;
+          startGame(false);
+          if (Array.isArray(data.stones)) {
+            stones = data.stones;
+            updateHud();
+            draw();
+          }
+          return;
+        }
         if (data.type === 'reset') { resetGame(); return; }
-        if (data.type === 'rematch') { if (data.currentArena) currentArena = data.currentArena; startGame(false); return; }
+        if (data.type === 'rematch') {
+          if (data.currentArena) currentArena = data.currentArena;
+          startGame(false);
+          if (Array.isArray(data.stones)) {
+            stones = data.stones;
+            updateHud();
+            draw();
+          }
+          return;
+        }
         if (data.type === 'rematch_request') { showRematchRequest(data.fromName); return; }
         if (data.type === 'rematch_accept') { if (isHost) autoStartRematch(); return; }
         if (data.type === 'rematch_decline') {
@@ -3899,7 +4023,7 @@
       if (!startGame()) enterEntryScreen();
     });
     backToLobbyBtn.addEventListener('click', () => {
-      if (phase === 'playing') {
+      if (phase === 'playing' || phase === 'countdown') {
         showConfirmAction('게임을 그만두시겠습니까?', '지금 나가면 패배로 기록되고 레이팅이 하락합니다.', '그만두기', '계속하기', forfeitMatch);
         return;
       }
@@ -3910,7 +4034,7 @@
       unlockAudio();
       if (conn && !isHost) return;
       if (!startGame()) return;
-      if (conn && isHost) sendMessage({ type: 'start', currentArena });
+      if (conn && isHost) sendMessage({ type: 'start', currentArena, stones });
     });
     rematchBtn.addEventListener('click', () => {
       unlockAudio();
@@ -3928,7 +4052,7 @@
         }
         if (!isHost) return;
         if (!startGame()) return;
-        sendMessage({ type: 'rematch', currentArena });
+        sendMessage({ type: 'rematch', currentArena, stones });
         return;
       }
       startGame();
