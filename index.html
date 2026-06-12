@@ -1204,13 +1204,16 @@
       const quarter = halfWidth / 2;
       const rowGap = Math.max(STONE_R * 2.35, Math.min(62, laneOffset - SCORING_R - STONE_R - 18));
       const spread = Math.max(STONE_R * 2.45, Math.min(108, halfWidth * 0.72));
-      const makeRows = (baseY, dir) => [
-        { x: CENTER_X - spread, y: baseY },
-        { x: CENTER_X, y: baseY },
-        { x: CENTER_X + spread, y: baseY },
-        { x: CENTER_X - spread / 2, y: baseY + dir * rowGap },
-        { x: CENTER_X + spread / 2, y: baseY + dir * rowGap }
-      ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+      const makeRows = (edgeY, dir) => {
+        const centerSideY = edgeY + dir * rowGap;
+        return [
+          { x: CENTER_X - spread, y: centerSideY },
+          { x: CENTER_X, y: centerSideY },
+          { x: CENTER_X + spread, y: centerSideY },
+          { x: CENTER_X - spread / 2, y: edgeY },
+          { x: CENTER_X + spread / 2, y: edgeY }
+        ].map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+      };
       return {
         topY: CENTER_Y - laneOffset,
         bottomY: CENTER_Y + laneOffset,
